@@ -46,6 +46,12 @@ export default function LandingPage() {
   const [previewRows, setPreviewRows] = useState<any[][] | null>(null);
   const [featureNames, setFeatureNames] = useState<null | boolean>(null);
   const [datasetRows, setDatasetRows] = useState<any[][] | null>(null);
+  const [missingDataOptions, setMissingDataOptions] = useState({
+    blanks: true,
+    na: false,
+    other: false,
+    otherText: '',
+  });
 
   const onDrop = async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
@@ -102,7 +108,7 @@ export default function LandingPage() {
           }
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false }) as any[][];
-          resolve(rows.slice(0, 10));
+          resolve(rows.slice(0, 12));
         } catch (err) {
           reject(err);
         }
@@ -118,9 +124,19 @@ export default function LandingPage() {
   const handleContinue = async () => {
     if (!selectedFile) return;
     setUploading(true);
+    // console.log("Selected file: ", selectedFile);
     try {
+      // console.log("Parsing file preview...");
       const rows = await parseFilePreview(selectedFile);
       setPreviewRows(rows);
+      const firstRow = rows[0];
+      const allStrings = firstRow.every(cell => typeof cell === 'string');
+      if (allStrings) {
+        setFeatureNames(true);
+      } else {
+        setFeatureNames(false);
+      }
+      console.log("Feature names: ", featureNames);
       setStep(1);
     } catch (err) {
       setErrorModal({ open: true, message: 'Could not parse file for preview.' });
@@ -142,7 +158,7 @@ export default function LandingPage() {
         processedRows = [...previewRows];
       }
       setDatasetRows(processedRows);
-      // (Do not advance step yet)
+      setStep(2);
     };
     return (
       <FirstQuestion
