@@ -3,9 +3,10 @@ import { useState } from 'react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import FirstQuestion from './components/FirstQuestion';
+import SecondQuestion from './components/SecondQuestion';
+import ThirdQuestion from './components/ThirdQuestion';
 
 const MAX_SIZE_MB = 100;
-const ACCEPTED_FORMATS = ['.csv', '.xls', '.xlsx'];
 
 function ErrorModal({ message, onClose }: { message: string; onClose: () => void }) {
   return (
@@ -52,6 +53,8 @@ export default function LandingPage() {
     other: false,
     otherText: '',
   });
+  const [targetFeature, setTargetFeature] = useState<string | null>(null);
+  const [targetType, setTargetType] = useState<'numerical' | 'categorical' | null>(null);
 
   const onDrop = async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
@@ -124,9 +127,7 @@ export default function LandingPage() {
   const handleContinue = async () => {
     if (!selectedFile) return;
     setUploading(true);
-    // console.log("Selected file: ", selectedFile);
     try {
-      // console.log("Parsing file preview...");
       const rows = await parseFilePreview(selectedFile);
       setPreviewRows(rows);
       const firstRow = rows[0];
@@ -160,12 +161,46 @@ export default function LandingPage() {
       setDatasetRows(processedRows);
       setStep(2);
     };
+    
     return (
       <FirstQuestion
         previewRows={previewRows}
         featureNames={featureNames}
         setFeatureNames={setFeatureNames}
         onNext={handleFirstQuestionNext}
+      />
+    );
+  }
+
+  if (step === 2 && datasetRows) {
+    const handleSecondQuestionBack = () => setStep(1);
+    const handleSecondQuestionNext = () => setStep(3);
+    return (
+      <SecondQuestion
+        previewRows={datasetRows}
+        missingDataOptions={missingDataOptions}
+        setMissingDataOptions={setMissingDataOptions}
+        onBack={handleSecondQuestionBack}
+        onNext={handleSecondQuestionNext}
+      />
+    );
+  }
+
+  if (step === 3 && datasetRows) {
+    const handleThirdQuestionBack = () => setStep(2);
+    const handleThirdQuestionNext = () => {
+      // TODO: Advance to next step or process results (MDT-12)
+      console.log('Target feature:', targetFeature, 'Type:', targetType);
+    };
+    return (
+      <ThirdQuestion
+        previewRows={datasetRows}
+        targetFeature={targetFeature}
+        setTargetFeature={setTargetFeature}
+        targetType={targetType}
+        setTargetType={setTargetType}
+        onBack={handleThirdQuestionBack}
+        onNext={handleThirdQuestionNext}
       />
     );
   }
