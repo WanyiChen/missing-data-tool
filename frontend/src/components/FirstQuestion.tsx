@@ -31,18 +31,24 @@ const FirstQuestion: React.FC<FirstQuestionProps> = ({ previewRows, featureNames
           <p className="text-gray-500 text-sm mt-2">If you choose "no," feature names will automatically be assigned. The first column will be named "Feature 1," the second column will be named "Feature 2," etc.</p>
         </div>
         <div className="mb-6 mt-8">
-          <div className="text-gray-500 text-sm mb-2">Dataset preview (first 10 rows)</div>
+          <div className="text-gray-500 text-sm mb-2">Dataset preview {featureNames === true ? '(first 11 rows)' : '(first 10 rows)'}</div>
           <div className="overflow-x-auto border rounded-xl bg-white shadow max-w-full">
             <table className="min-w-[600px] border-collapse">
               <thead>
                 <tr>
-                  {previewRows[0]?.map((col: any, i: number) => (
+                  {(featureNames === false
+                    ? Array.from({ length: Math.max(...previewRows.map(r => r.length)) }, (_, i) => `Feature ${i + 1}`)
+                    : previewRows[0]
+                  ).map((col: any, i: number) => (
                     <th key={i} className="px-3 py-2 border-b font-semibold text-xs text-gray-700 whitespace-nowrap bg-gray-50">{String(col)}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {previewRows.slice(1).map((row, i) => (
+                {(featureNames === false
+                  ? previewRows.slice(0, 10)
+                  : previewRows.slice(1, 11)
+                ).map((row, i) => (
                   <tr key={i}>
                     {row.map((cell, j) => (
                       <td key={j} className="px-3 py-2 border-b text-xs text-gray-800 whitespace-nowrap">{cell === undefined ? '' : String(cell)}</td>
