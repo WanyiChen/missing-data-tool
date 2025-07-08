@@ -20,7 +20,8 @@
     "react-dom": "^19.1.0",
     "react-dropzone": "^14.3.8",
     "react-hook-form": "^7.58.1",
-    "react-select": "^5.10.1"
+    "react-select": "^5.10.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",
@@ -41,5 +42,10 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.34.1",
     "vite": "^7.0.0"
+  },
+  "overrides": {
+    "@tailwindcss/vite": {
+      "vite": "^7.0.0"
+    }
   }
 }

@@ -1,6 +1,8 @@
 import { useDropzone } from 'react-dropzone';
 import { useState } from 'react';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
+import FirstQuestion from './components/FirstQuestion';
 
 const MAX_SIZE_MB = 100;
 const ACCEPTED_FORMATS = ['.csv', '.xls', '.xlsx'];
@@ -40,6 +42,16 @@ export default function LandingPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [errorModal, setErrorModal] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [step, setStep] = useState(0);
+  const [previewRows, setPreviewRows] = useState<any[][] | null>(null);
+  const [featureNames, setFeatureNames] = useState<null | boolean>(null);
+  const [datasetRows, setDatasetRows] = useState<any[][] | null>(null);
+  const [missingDataOptions, setMissingDataOptions] = useState({
+    blanks: true,
+    na: false,
+    other: false,
+    otherText: '',
+  });
 
   const onDrop = async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
@@ -82,6 +94,82 @@ export default function LandingPage() {
     disabled: uploading || uploadSuccess,
   });
 
+  const parseFilePreview = async (file: File) => {
+    return new Promise<any[][]>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          let workbook;
+          if (file.name.endsWith('.csv')) {
+            workbook = XLSX.read(data, { type: 'string' });
+          } else {
+            workbook = XLSX.read(data, { type: 'array' });
+          }
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false }) as any[][];
+          resolve(rows.slice(0, 12));
+        } catch (err) {
+          reject(err);
+        }
+      };
+      if (file.name.endsWith('.csv')) {
+        reader.readAsText(file);
+      } else {
+        reader.readAsArrayBuffer(file);
+      }
+    });
+  };
+
+  const handleContinue = async () => {
+    if (!selectedFile) return;
+    setUploading(true);
+    // console.log("Selected file: ", selectedFile);
+    try {
+      // console.log("Parsing file preview...");
+      const rows = await parseFilePreview(selectedFile);
+      setPreviewRows(rows);
+      const firstRow = rows[0];
+      const allStrings = firstRow.every(cell => typeof cell === 'string');
+      if (allStrings) {
+        setFeatureNames(true);
+      } else {
+        setFeatureNames(false);
+      }
+      console.log("Feature names: ", featureNames);
+      setStep(1);
+    } catch (err) {
+      setErrorModal({ open: true, message: 'Could not parse file for preview.' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  if (step === 1 && previewRows) {
+    const handleFirstQuestionNext = () => {
+      if (!previewRows) return;
+      let processedRows: any[][];
+      if (featureNames === false) {
+        // Generate generic feature names
+        const numCols = Math.max(...previewRows.map(r => r.length));
+        const header = Array.from({ length: numCols }, (_, i) => `Feature ${i + 1}`);
+        processedRows = [header, ...previewRows];
+      } else {
+        processedRows = [...previewRows];
+      }
+      setDatasetRows(processedRows);
+      setStep(2);
+    };
+    return (
+      <FirstQuestion
+        previewRows={previewRows}
+        featureNames={featureNames}
+        setFeatureNames={setFeatureNames}
+        onNext={handleFirstQuestionNext}
+      />
+    );
+  }
+
   return (
     <div className={`min-h-screen flex flex-col items-center justify-center bg-white ${errorModal.open ? 'overflow-hidden h-screen' : ''}`}>
       {errorModal.open && (
@@ -121,8 +209,10 @@ export default function LandingPage() {
             <button
               type="button"
               className="mt-2 mb-3 bg-black text-white text-lg font-semibold rounded-lg px-8 py-3 transition-transform duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-black"
+              onClick={handleContinue}
+              disabled={uploading}
             >
-              Continue
+              {uploading ? 'Loading preview...' : 'Continue'}
             </button>
             <button
               type="button"
