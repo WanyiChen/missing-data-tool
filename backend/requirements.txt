@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+filetype
+python-magic
+pandas
+numpy
+missingno
+matplotlib
+seaborn
+scikit-learn
+openpyxl
+xlrd
+pytest
+python-multipart
