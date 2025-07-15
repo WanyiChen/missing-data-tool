@@ -24,11 +24,18 @@ python -m venv venv
 # On Windows:
 venv\Scripts\activate
 # On Mac/Linux:
-# source venv/bin/activate
+source venv/bin/activate
+# Inside of the virtual environment:
 pip install -r requirements.txt
-uvicorn main:app --reload
+python run.py
 ```
 - The backend will run at `http://localhost:8000` by default.
+
+You can also run the backend directly with Uvicorn if you prefer:
+
+```bash
+uvicorn main:app --reload
+```
 
 ---
 
