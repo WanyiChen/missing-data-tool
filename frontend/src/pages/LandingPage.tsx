@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
 import FirstQuestion from '../components/FirstQuestion';
 /* import SecondQuestion from '../components/SecondQuestion'; */
 import ThirdQuestion from '../components/ThirdQuestion';
+import SecondQuestion from '../components/SecondQuestion';
 
 const MAX_SIZE_MB = 100;
 
@@ -173,8 +174,7 @@ export default function LandingPage() {
       />
     );
   }
-  /*
-
+  
   if (step === 2 && datasetRows) {
     const handleSecondQuestionBack = () => setStep(1);
     const handleSecondQuestionNext = () => setStep(3);
@@ -188,7 +188,6 @@ export default function LandingPage() {
       />
     );
   }
-    */
 
   if (step === 3 && datasetRows) {
     const handleThirdQuestionBack = () => setStep(2);
