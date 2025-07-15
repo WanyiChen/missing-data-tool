@@ -1,0 +1,32 @@
+.button {
+  display: inline-block;
+  font-weight: 500;
+  border: none;
+  outline: none;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.primary {
+  background: #111;
+  color: #fff;
+}
+.primary:hover:not(:disabled) {
+  background: #333;
+  color: #fff;
+}
+.secondary {
+  background: #f3f4f6;
+  color: #222;
+  border: 1px solid #d1d5db;
+}
+.secondary:hover:not(:disabled) {
+  background: #e5e7eb;
+  color: #111;
+} 
