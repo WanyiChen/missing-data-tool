@@ -24,7 +24,8 @@ python -m venv venv
 # On Windows:
 venv\Scripts\activate
 # On Mac/Linux:
-# source venv/bin/activate
+source venv/bin/activate
+# Inside of the virtual environment:
 pip install -r requirements.txt
 python run.py
 ```
