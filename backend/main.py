@@ -3,8 +3,13 @@ from fastapi.responses import JSONResponse
 import os
 import pandas as pd
 import io
+import json
 
 app = FastAPI()
+
+# Global variable to store uploaded file content (for demo purposes)
+latest_uploaded_file = None
+latest_uploaded_filename = None
 
 @app.get("/")
 def read_root():
@@ -42,4 +47,26 @@ async def validate_upload(file: UploadFile = File(...)):
     if df.empty:
         return JSONResponse(status_code=400, content={"success": False, "message": "Sorry, your file appears to be empty. Please double check."})
 
+    # Save file content globally for later use
+    global latest_uploaded_file, latest_uploaded_filename
+    latest_uploaded_file = contents
+    latest_uploaded_filename = filename
+
     return {"success": True, "message": "File is valid."}
+
+@app.post("/api/submit-data")
+async def submit_data(
+    missingDataOptions: str = File(...),
+    targetFeature: str = File(...),
+    targetType: str = File(...)
+):
+    # Validate variables
+    if not targetFeature or not targetType:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Missing target feature or type."})
+    
+    try:
+        missing_data_options = json.loads(missingDataOptions)
+    except Exception:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Invalid missingDataOptions format."})
+
+    return {"success": True, "message": "Data received successfully."}
