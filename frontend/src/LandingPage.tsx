@@ -5,10 +5,8 @@ import * as XLSX from 'xlsx';
 import FirstQuestion from './components/FirstQuestion';
 import SecondQuestion from './components/SecondQuestion';
 import ThirdQuestion from './components/ThirdQuestion';
-import AnalysisDashboard from './components/AnalysisDashboard';
 
 const MAX_SIZE_MB = 100;
-const ACCEPTED_FORMATS = ['.csv', '.xls', '.xlsx'];
 
 function ErrorModal({ message, onClose }: { message: string; onClose: () => void }) {
   return (
@@ -191,11 +189,11 @@ export default function LandingPage() {
   if (step === 3 && datasetRows) {
     const handleThirdQuestionBack = () => setStep(2);
     const handleThirdQuestionNext = () => {
-      // Pass information to analysis dashboard page
+      // TODO: Advance to next step or process results (MDT-12)
       console.log('Target feature:', targetFeature, 'Type:', targetType);
       console.log('Missing data options:', missingDataOptions);
       console.log('File:', selectedFile?.name);
-      setStep(4); // Advance to analysis dashboard
+      // For now, just log the results - analysis dashboard will be implemented later
     };
     return (
       <ThirdQuestion
@@ -206,21 +204,6 @@ export default function LandingPage() {
         setTargetType={setTargetType}
         onBack={handleThirdQuestionBack}
         onNext={handleThirdQuestionNext}
-      />
-    );
-  }
-
-  if (step === 4 && datasetRows) {
-    const handleAnalysisDashboardBack = () => setStep(3);
-    return (
-      <AnalysisDashboard
-        selectedFile={selectedFile}
-        featureNames={featureNames}
-        missingDataOptions={missingDataOptions}
-        targetFeature={targetFeature}
-        targetType={targetType}
-        previewRows={datasetRows}
-        onBack={handleAnalysisDashboardBack}
       />
     );
   }
