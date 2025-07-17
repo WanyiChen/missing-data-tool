@@ -140,7 +140,6 @@ export default function LandingPage() {
       } else {
         setFeatureNames(false);
       }
-      console.log("Feature names: ", featureNames);
       setStep(1);
     } catch (err) {
       setErrorModal({ open: true, message: 'Could not parse file for preview.' });
@@ -191,8 +190,26 @@ export default function LandingPage() {
 
   if (step === 3 && datasetRows) {
     const handleThirdQuestionBack = () => setStep(2);
-    const handleThirdQuestionNext = () => {
-      navigate('/dashboard');
+    const handleThirdQuestionNext = async () => {
+      setUploading(true);
+      const formData = new FormData();
+      formData.append('missingDataOptions', JSON.stringify(missingDataOptions));
+      formData.append('targetFeature', targetFeature || '');
+      formData.append('targetType', targetType || '');
+      try {
+        await axios.post('/api/submit-data', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        navigate('/dashboard');
+      } catch (error: any) {
+        let message = 'Failed to submit data.';
+        if (error.response && error.response.data && error.response.data.message) {
+          message = error.response.data.message;
+        }
+        setErrorModal({ open: true, message });
+      } finally {
+        setUploading(false);
+      }
     };
     return (
       <ThirdQuestion
