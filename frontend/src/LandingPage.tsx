@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 import FirstQuestion from './components/FirstQuestion';
 import SecondQuestion from './components/SecondQuestion';
 import ThirdQuestion from './components/ThirdQuestion';
+import AnalysisDashboard from './components/AnalysisDashboard';
 
 const MAX_SIZE_MB = 100;
 
@@ -64,7 +65,7 @@ export default function LandingPage() {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const response = await axios.post('/api/validate-upload', formData, {
+      await axios.post('/api/validate-upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setUploadSuccess(true);
@@ -189,8 +190,11 @@ export default function LandingPage() {
   if (step === 3 && datasetRows) {
     const handleThirdQuestionBack = () => setStep(2);
     const handleThirdQuestionNext = () => {
-      // TODO: Advance to next step or process results (MDT-12)
+      // Pass information to analysis dashboard page
       console.log('Target feature:', targetFeature, 'Type:', targetType);
+      console.log('Missing data options:', missingDataOptions);
+      console.log('File:', selectedFile?.name);
+      setStep(4); // Advance to analysis dashboard
     };
     return (
       <ThirdQuestion
@@ -201,6 +205,21 @@ export default function LandingPage() {
         setTargetType={setTargetType}
         onBack={handleThirdQuestionBack}
         onNext={handleThirdQuestionNext}
+      />
+    );
+  }
+
+  if (step === 4 && datasetRows) {
+    const handleAnalysisDashboardBack = () => setStep(3);
+    return (
+      <AnalysisDashboard
+        selectedFile={selectedFile}
+        featureNames={featureNames}
+        missingDataOptions={missingDataOptions}
+        targetFeature={targetFeature}
+        targetType={targetType}
+        previewRows={datasetRows}
+        onBack={handleAnalysisDashboardBack}
       />
     );
   }
