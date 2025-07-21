@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 import os
 import pandas as pd
 import io
+from pyampute.exploration.mcar import little_mcar_test
 
 router = APIRouter()
 
@@ -60,4 +61,32 @@ def feature_count(request: Request):
         "success": True,
         "features_with_missing": features_with_missing,
         "missing_feature_percentage": round(missing_feature_percentage, 2)
-    } 
+    }
+
+@router.get("/api/missing-mechanism")
+def missing_mechanism(request: Request):
+    file = getattr(request.app.state, "latest_uploaded_file", None)
+    filename = getattr(request.app.state, "latest_uploaded_filename", None)
+    if file is None:
+        return JSONResponse(status_code=400, content={"success": False, "message": "No file uploaded yet."})
+    ext = os.path.splitext(filename or "")[1].lower()
+    try:
+        if ext == ".csv":
+            df = pd.read_csv(io.BytesIO(file))
+        else:
+            df = pd.read_excel(io.BytesIO(file))
+    except Exception:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Could not read uploaded file."})
+    if df.empty:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Uploaded file is empty."})
+    try:
+        p_value = little_mcar_test(df)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"success": False, "message": f"Error running MCAR test: {str(e)}"})
+    if p_value < 0.05:
+        mechanism_acronym = "MAR or MNAR"
+        mechanism_full = "(Missing at Random or Missing Not at Random)"
+    else:
+        mechanism_acronym = "MCAR"
+        mechanism_full = "(Missing Completely at Random)"
+    return {"success": True, "mechanism_acronym": mechanism_acronym, "mechanism_full": mechanism_full, "p_value": float(p_value)} 
