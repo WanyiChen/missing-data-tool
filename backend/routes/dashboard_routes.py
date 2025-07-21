@@ -1,24 +1,24 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 import os
 import pandas as pd
 import io
-from .validation_routes import latest_uploaded_file, latest_uploaded_filename
 
 router = APIRouter()
 
 @router.get("/api/case-count")
-def case_count():
-    global latest_uploaded_file, latest_uploaded_filename
-    print(f"Latest File: {latest_uploaded_filename}")
-    if latest_uploaded_file is None:
+def case_count(request: Request):
+    file = getattr(request.app.state, "latest_uploaded_file", None)
+    filename = getattr(request.app.state, "latest_uploaded_filename", None)
+    print(f"Latest File: {filename}")
+    if file is None:
         return JSONResponse(status_code=400, content={"success": False, "message": "No file uploaded yet."})
-    ext = os.path.splitext(latest_uploaded_filename or "")[1].lower()
+    ext = os.path.splitext(filename or "")[1].lower()
     try:
         if ext == ".csv":
-            df = pd.read_csv(io.BytesIO(latest_uploaded_file))
+            df = pd.read_csv(io.BytesIO(file))
         else:
-            df = pd.read_excel(io.BytesIO(latest_uploaded_file))
+            df = pd.read_excel(io.BytesIO(file))
     except Exception:
         return JSONResponse(status_code=400, content={"success": False, "message": "Could not read uploaded file."})
     if df.empty:
@@ -34,16 +34,17 @@ def case_count():
     }
 
 @router.get("/api/feature-count")
-def feature_count():
-    global latest_uploaded_file, latest_uploaded_filename
-    if latest_uploaded_file is None:
+def feature_count(request: Request):
+    file = getattr(request.app.state, "latest_uploaded_file", None)
+    filename = getattr(request.app.state, "latest_uploaded_filename", None)
+    if file is None:
         return JSONResponse(status_code=400, content={"success": False, "message": "No file uploaded yet."})
-    ext = os.path.splitext(latest_uploaded_filename or "")[1].lower()
+    ext = os.path.splitext(filename or "")[1].lower()
     try:
         if ext == ".csv":
-            df = pd.read_csv(io.BytesIO(latest_uploaded_file))
+            df = pd.read_csv(io.BytesIO(file))
         else:
-            df = pd.read_excel(io.BytesIO(latest_uploaded_file))
+            df = pd.read_excel(io.BytesIO(file))
     except Exception:
         return JSONResponse(status_code=400, content={"success": False, "message": "Could not read uploaded file."})
     if df.empty:
