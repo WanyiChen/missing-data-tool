@@ -3,7 +3,8 @@ from fastapi.responses import JSONResponse
 import os
 import pandas as pd
 import io
-from pyampute.exploration.mcar import little_mcar_test
+import math
+from pyampute.exploration.mcar_statistical_tests import MCARTest
 
 router = APIRouter()
 
@@ -63,9 +64,22 @@ def missing_mechanism(request: Request):
     if error:
         return error
     try:
-        p_value = little_mcar_test(df)
+        mt = MCARTest(method="little")
+        p_value = mt.little_mcar_test(df)
+        print(p_value)
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "message": f"Error running MCAR test: {str(e)}"})
+    if p_value is None or (isinstance(p_value, float) and (math.isnan(p_value) or math.isinf(p_value))):
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": False,
+                "message": "Could not determine missing data mechanism (test returned NaN or invalid value).",
+                "p_value": None,
+                "mechanism_acronym": None,
+                "mechanism_full": None
+            }
+        )
     if p_value < 0.05:
         mechanism_acronym = "MAR or MNAR"
         mechanism_full = "(Missing at Random or Missing Not at Random)"

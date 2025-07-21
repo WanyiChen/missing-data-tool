@@ -1,9 +1,9 @@
 import React from 'react';
 import UploadIcon from '@mui/icons-material/Upload';
 import DownloadIcon from '@mui/icons-material/Download';
-import MechanismCard from '../components/MechanismCard';
-import CaseCountCard from '../components/CaseCountCard';
-import FeatureCountCard from '../components/FeatureCountCard';
+import MechanismCard from '../components/dashboard/MechanismCard';
+import CaseCountCard from '../components/dashboard/CaseCountCard';
+import FeatureCountCard from '../components/dashboard/FeatureCountCard';
 
 const DashboardPage: React.FC = () => {
   return (

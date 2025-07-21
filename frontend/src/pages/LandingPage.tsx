@@ -3,10 +3,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
-import FirstQuestion from '../components/FirstQuestion';
-/* import SecondQuestion from '../components/SecondQuestion'; */
-import ThirdQuestion from '../components/ThirdQuestion';
-import SecondQuestion from '../components/SecondQuestion';
+import FirstQuestion from '../components/questions/FirstQuestion';
+import SecondQuestion from '../components/questions/SecondQuestion';
+import ThirdQuestion from '../components/questions/ThirdQuestion';
 
 const MAX_SIZE_MB = 100;
 
