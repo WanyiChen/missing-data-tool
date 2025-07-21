@@ -7,13 +7,11 @@ from pyampute.exploration.mcar import little_mcar_test
 
 router = APIRouter()
 
-@router.get("/api/case-count")
-def case_count(request: Request):
+def get_uploaded_dataframe(request: Request):
     file = getattr(request.app.state, "latest_uploaded_file", None)
     filename = getattr(request.app.state, "latest_uploaded_filename", None)
-    print(f"Latest File: {filename}")
     if file is None:
-        return JSONResponse(status_code=400, content={"success": False, "message": "No file uploaded yet."})
+        return None, JSONResponse(status_code=400, content={"success": False, "message": "No file uploaded yet."})
     ext = os.path.splitext(filename or "")[1].lower()
     try:
         if ext == ".csv":
@@ -21,9 +19,16 @@ def case_count(request: Request):
         else:
             df = pd.read_excel(io.BytesIO(file))
     except Exception:
-        return JSONResponse(status_code=400, content={"success": False, "message": "Could not read uploaded file."})
+        return None, JSONResponse(status_code=400, content={"success": False, "message": "Could not read uploaded file."})
     if df.empty:
-        return JSONResponse(status_code=400, content={"success": False, "message": "Uploaded file is empty."})
+        return None, JSONResponse(status_code=400, content={"success": False, "message": "Uploaded file is empty."})
+    return df, None
+
+@router.get("/api/case-count")
+def case_count(request: Request):
+    df, error = get_uploaded_dataframe(request)
+    if error:
+        return error
     total_cases = len(df)
     total_cells = df.shape[0] * df.shape[1]
     missing_cells = df.isnull().sum().sum()
@@ -36,20 +41,9 @@ def case_count(request: Request):
 
 @router.get("/api/feature-count")
 def feature_count(request: Request):
-    file = getattr(request.app.state, "latest_uploaded_file", None)
-    filename = getattr(request.app.state, "latest_uploaded_filename", None)
-    if file is None:
-        return JSONResponse(status_code=400, content={"success": False, "message": "No file uploaded yet."})
-    ext = os.path.splitext(filename or "")[1].lower()
-    try:
-        if ext == ".csv":
-            df = pd.read_csv(io.BytesIO(file))
-        else:
-            df = pd.read_excel(io.BytesIO(file))
-    except Exception:
-        return JSONResponse(status_code=400, content={"success": False, "message": "Could not read uploaded file."})
-    if df.empty:
-        return JSONResponse(status_code=400, content={"success": False, "message": "Uploaded file is empty."})
+    df, error = get_uploaded_dataframe(request)
+    if error:
+        return error
     total_features = df.shape[1]
     result = df.isnull().any(axis=0)
     if isinstance(result, bool):
@@ -65,20 +59,9 @@ def feature_count(request: Request):
 
 @router.get("/api/missing-mechanism")
 def missing_mechanism(request: Request):
-    file = getattr(request.app.state, "latest_uploaded_file", None)
-    filename = getattr(request.app.state, "latest_uploaded_filename", None)
-    if file is None:
-        return JSONResponse(status_code=400, content={"success": False, "message": "No file uploaded yet."})
-    ext = os.path.splitext(filename or "")[1].lower()
-    try:
-        if ext == ".csv":
-            df = pd.read_csv(io.BytesIO(file))
-        else:
-            df = pd.read_excel(io.BytesIO(file))
-    except Exception:
-        return JSONResponse(status_code=400, content={"success": False, "message": "Could not read uploaded file."})
-    if df.empty:
-        return JSONResponse(status_code=400, content={"success": False, "message": "Uploaded file is empty."})
+    df, error = get_uploaded_dataframe(request)
+    if error:
+        return error
     try:
         p_value = little_mcar_test(df)
     except Exception as e:
