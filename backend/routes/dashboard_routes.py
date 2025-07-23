@@ -23,7 +23,14 @@ def get_uploaded_dataframe(request: Request):
         return None, JSONResponse(status_code=400, content={"success": False, "message": "Could not read uploaded file."})
     if df.empty:
         return None, JSONResponse(status_code=400, content={"success": False, "message": "Uploaded file is empty."})
-    return df, None
+
+    df_encoded = df.copy()
+    for col in df_encoded.columns:
+        if df_encoded[col].dtype == 'object':
+            le = LabelEncoder()
+            df_encoded[col] = le.fit_transform(df_encoded[col].astype(str))  # Handle nulls by converting to str
+
+    return df_encoded, None
 
 @router.get("/api/case-count")
 def case_count(request: Request):
