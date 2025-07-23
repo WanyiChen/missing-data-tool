@@ -5,6 +5,7 @@ import pandas as pd
 import io
 import math
 from pyampute.exploration.mcar_statistical_tests import MCARTest
+from sklearn.preprocessing import LabelEncoder
 
 router = APIRouter()
 
