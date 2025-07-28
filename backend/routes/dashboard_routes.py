@@ -5,33 +5,18 @@ import pandas as pd
 import io
 import math
 from pyampute.exploration.mcar_statistical_tests import MCARTest
-from sklearn.preprocessing import LabelEncoder
 
 router = APIRouter()
 
 def get_uploaded_dataframe(request: Request):
-    file = getattr(request.app.state, "latest_uploaded_file", None)
-    filename = getattr(request.app.state, "latest_uploaded_filename", None)
-    if file is None:
-        return None, JSONResponse(status_code=400, content={"success": False, "message": "No file uploaded yet."})
-    ext = os.path.splitext(filename or "")[1].lower()
-    try:
-        if ext == ".csv":
-            df = pd.read_csv(io.BytesIO(file))
-        else:
-            df = pd.read_excel(io.BytesIO(file))
-    except Exception:
-        return None, JSONResponse(status_code=400, content={"success": False, "message": "Could not read uploaded file."})
+    
+    df = getattr(request.app.state, "df", None)
+    if df is None:
+        return None, JSONResponse(status_code=400, content={"success": False, "message": "No data available."})
     if df.empty:
-        return None, JSONResponse(status_code=400, content={"success": False, "message": "Uploaded file is empty."})
-
-    df_encoded = df.copy()
-    for col in df_encoded.columns:
-        if df_encoded[col].dtype == 'object':
-            le = LabelEncoder()
-            df_encoded[col] = le.fit_transform(df_encoded[col].astype(str))  # Handle nulls by converting to str
-
-    return df_encoded, None
+        return None, JSONResponse(status_code=400, content={"success": False, "message": "Data is empty."})
+    
+    return df, None
 
 @router.get("/api/case-count")
 def case_count(request: Request):
