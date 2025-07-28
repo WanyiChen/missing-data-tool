@@ -127,15 +127,139 @@ export default function LandingPage() {
     setFeatureNames(null);
   };
 
-  // Step 1: Feature name question + preview
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    accept: {
+      'text/csv': ['.csv'],
+      'application/vnd.ms-excel': ['.xls'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+    },
+    maxSize: MAX_SIZE_MB * 1024 * 1024,
+    multiple: false,
+    onDrop,
+    disabled: uploading || uploadSuccess,
+  });
+
+  const parseFilePreview = async (file: File) => {
+    return new Promise<any[][]>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          let workbook;
+          if (file.name.endsWith('.csv')) {
+            workbook = XLSX.read(data, { type: 'string' });
+          } else {
+            workbook = XLSX.read(data, { type: 'array' });
+          }
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false }) as any[][];
+          resolve(rows.slice(0, 12));
+        } catch (err) {
+          reject(err);
+        }
+      };
+      if (file.name.endsWith('.csv')) {
+        reader.readAsText(file);
+      } else {
+        reader.readAsArrayBuffer(file);
+      }
+    });
+  };
+
+  const handleContinue = async () => {
+    if (!selectedFile) return;
+    setUploading(true);
+    try {
+      const rows = await parseFilePreview(selectedFile);
+      setPreviewRows(rows);
+      const firstRow = rows[0];
+      const allStrings = firstRow.every(cell => typeof cell === 'string');
+      if (allStrings) {
+        setFeatureNames(true);
+      } else {
+        setFeatureNames(false);
+      }
+      setStep(1);
+    } catch (err) {
+      setErrorModal({ open: true, message: 'Could not parse file for preview.' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  if (step === 1 && previewRows) {
+    const handleFirstQuestionNext = () => {
+      if (!previewRows) return;
+      let processedRows: any[][];
+      if (featureNames === false) {
+        // Generate generic feature names
+        const numCols = Math.max(...previewRows.map(r => r.length));
+        const header = Array.from({ length: numCols }, (_, i) => `Feature ${i + 1}`);
+        processedRows = [header, ...previewRows];
+      } else {
+        processedRows = [...previewRows];
+      }
+      setDatasetRows(processedRows);
+      setStep(2);
+    };
+    
   if (step === 1) {
     return (
       <FirstQuestion
         previewRows={previewRows || []}
         featureNames={featureNames}
         setFeatureNames={setFeatureNames}
-        onNext={() => {}}
-        onBack={resetUpload}
+        onNext={handleFirstQuestionNext}
+      />
+    );
+  }
+  
+  if (step === 2 && datasetRows) {
+    const handleSecondQuestionBack = () => setStep(1);
+    const handleSecondQuestionNext = () => setStep(3);
+    return (
+      <SecondQuestion
+        previewRows={datasetRows}
+        missingDataOptions={missingDataOptions}
+        setMissingDataOptions={setMissingDataOptions}
+        onBack={handleSecondQuestionBack}
+        onNext={handleSecondQuestionNext}
+      />
+    );
+  }
+
+  if (step === 3 && datasetRows) {
+    const handleThirdQuestionBack = () => setStep(2);
+    const handleThirdQuestionNext = async () => {
+      setUploading(true);
+      const formData = new FormData();
+      formData.append('missingDataOptions', JSON.stringify(missingDataOptions));
+      formData.append('targetFeature', targetFeature || '');
+      formData.append('targetType', targetType || '');
+      try {
+        await axios.post('/api/submit-data', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        navigate('/dashboard');
+      } catch (error: any) {
+        let message = 'Failed to submit data.';
+        if (error.response && error.response.data && error.response.data.message) {
+          message = error.response.data.message;
+        }
+        setErrorModal({ open: true, message });
+      } finally {
+        setUploading(false);
+      }
+    };
+    return (
+      <ThirdQuestion
+        previewRows={datasetRows}
+        targetFeature={targetFeature}
+        setTargetFeature={setTargetFeature}
+        targetType={targetType}
+        setTargetType={setTargetType}
+        onBack={handleThirdQuestionBack}
+        onNext={handleThirdQuestionNext}
       />
     );
   }
