@@ -51,11 +51,10 @@ async def validate_upload(request: Request, file: UploadFile = File(...)):
     # Save file content globally for later use
     request.app.state.latest_uploaded_file = contents
     request.app.state.latest_uploaded_filename = filename
-    print(f"Latest Uploaded File in Validate Upload: {filename}")
 
     return {"success": True, "message": "File is valid."}
 
-def reformatData(missing_data_options: Dict, request: Request):
+def reformatData(addFeatureNames: bool, missing_data_options: Dict, request: Request):
     file = getattr(request.app.state, "latest_uploaded_file", None)
     filename = getattr(request.app.state, "latest_uploaded_filename", None)
     if file is None:
@@ -63,16 +62,24 @@ def reformatData(missing_data_options: Dict, request: Request):
     ext = os.path.splitext(filename or "")[1].lower()
     try:
         if ext == ".csv":
-            df = pd.read_csv(io.BytesIO(file))
+            if addFeatureNames:
+                df = pd.read_csv(io.BytesIO(file), header=None)
+                df.columns = [f"Feature {i+1}" for i in range(len(df.columns))]
+            else:
+                df = pd.read_csv(io.BytesIO(file))
         else:
-            df = pd.read_excel(io.BytesIO(file))
+            if addFeatureNames:
+                df = pd.read_excel(io.BytesIO(file), header=None)
+                df.columns = [f"Feature {i+1}" for i in range(len(df.columns))]
+            else:
+                df = pd.read_excel(io.BytesIO(file))
     except Exception:
         return JSONResponse(status_code=400, content={"success": False, "message": "Could not read uploaded file."})
     if df.empty:
         return JSONResponse(status_code=400, content={"success": False, "message": "Uploaded file is empty."})
 
     # Replace missing values based on options
-    if missing_data_options.get("na", False):
+    if missing_data_options["na"] == True:
         df.replace("N/A", np.nan, inplace=True)
     
     other_text = missing_data_options.get("otherText", "")
@@ -95,20 +102,25 @@ def reformatData(missing_data_options: Dict, request: Request):
     return None
 
 @router.post("/api/submit-data")
-async def submit_data(request: Request, missingDataOptions: str = File(...), targetFeature: str = File(...), targetType: str = File(...)):
-    # Validate variables
+async def submit_data(request: Request, featureNames: str = File(...), missingDataOptions: str = File(...), targetFeature: str = File(...), targetType: str = File(...)):
+    
+    if not featureNames:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Feature names are required."})
+
+    print(f"Feature Names: {featureNames}")
+
+    try:
+        missing_data_options = json.loads(missingDataOptions)
+    except Exception:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Invalid missingDataOptions format."})
+
     if not targetFeature or not targetType:
         return JSONResponse(status_code=400, content={"success": False, "message": "Missing target feature or type."})
     
     request.app.state.target_feature = targetFeature
     request.app.state.target_type = targetType
     
-    try:
-        missing_data_options = json.loads(missingDataOptions)
-    except Exception:
-        return JSONResponse(status_code=400, content={"success": False, "message": "Invalid missingDataOptions format."})
-
-    dataReformatError = reformatData(missing_data_options, request)
+    dataReformatError = reformatData(featureNames == "false", missing_data_options, request)
     if dataReformatError is not None:
         return dataReformatError
     

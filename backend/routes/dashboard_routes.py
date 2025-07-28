@@ -59,7 +59,6 @@ def missing_mechanism(request: Request):
     try:
         mt = MCARTest(method="little")
         p_value = mt.little_mcar_test(df)
-        print(p_value)
     except Exception as e:
         return JSONResponse(status_code=500, content={"success": False, "message": f"Error running MCAR test: {str(e)}"})
     if p_value is None or (isinstance(p_value, float) and (math.isnan(p_value) or math.isinf(p_value))):
