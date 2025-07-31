@@ -9,7 +9,6 @@ from pyampute.exploration.mcar_statistical_tests import MCARTest
 router = APIRouter()
 
 def get_uploaded_dataframe(request: Request):
-    
     df = getattr(request.app.state, "df", None)
     if df is None:
         return None, JSONResponse(status_code=400, content={"success": False, "message": "No data available."})
