@@ -4,6 +4,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import MechanismCard from "../components/dashboard/MechanismCard";
 import CaseCountCard from "../components/dashboard/CaseCountCard";
 import FeatureCountCard from "../components/dashboard/FeatureCountCard";
+import FeaturesTableCard from "../components/dashboard/MissingFeaturesTableCard";
 
 const DashboardPage: React.FC = () => {
     return (
@@ -22,12 +23,18 @@ const DashboardPage: React.FC = () => {
                     </button>
                 </div>
             </header>
-            {/* Dashboard Top Row */}
+            {/* Dashboard Content */}
             <main className="flex-1 flex flex-col items-center px-4 py-8 w-full">
-                <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <MechanismCard />
-                    <CaseCountCard />
-                    <FeatureCountCard />
+                <div className="w-full max-w-6xl space-y-8">
+                    {/* Top Row Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <MechanismCard />
+                        <CaseCountCard />
+                        <FeatureCountCard />
+                    </div>
+                    
+                    {/* Features Table */}
+                    <FeaturesTableCard />
                 </div>
             </main>
         </div>
