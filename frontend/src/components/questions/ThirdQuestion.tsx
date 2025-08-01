@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import styles from "./Button.module.css";
+import styles from "../common/Button.module.css";
 
 interface ThirdQuestionProps {
     featureNames: boolean | null;
