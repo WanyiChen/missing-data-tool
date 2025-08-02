@@ -7,7 +7,7 @@ export default defineConfig({
   /* TESTING PURPOSES ONLY - CHANGE TO PRODUCTION SERVER LATER */
   server: {
     proxy: {
-        '/api': 'http://localhost:8000',
+        '/api': 'http://backend:8000',
     },
   }
 });
