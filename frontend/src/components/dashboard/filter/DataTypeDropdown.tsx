@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
+import CheckIcon from '@mui/icons-material/Check';
 
 interface DataTypeDropdownProps {
     isOpen: boolean;
@@ -39,7 +40,7 @@ const DataTypeDropdown: React.FC<DataTypeDropdownProps> = ({
             document.removeEventListener('mousedown', handleClickOutside);
             document.removeEventListener('keydown', handleKeyDown);
         };
-    }, [isOpen, onClose]);
+    }, [isOpen]);
 
     if (!isOpen || !position) {
         return null;
@@ -48,29 +49,40 @@ const DataTypeDropdown: React.FC<DataTypeDropdownProps> = ({
     return (
         <div 
             ref={dropdownRef}
-            className="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg min-w-[140px]"
+            className="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg"
             style={{
                 left: `${position.x}px`,
                 top: `${position.y}px`,
-                transform: 'translateX(-50%)'
+                transform: 'translateX(-50%)',
+                minWidth: '180px'
             }}
         >
             <div className="py-1">
                 <button
                     onClick={() => onSelect('N')}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${
-                        currentType === 'N' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                    className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors duration-200 cursor-pointer ${
+                        currentType === 'N'
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900'
                     }`}
                 >
-                    N - Numerical
+                    <span>N - Numerical</span>
+                    {currentType === 'N' && (
+                        <CheckIcon className="text-blue-600 ml-2" fontSize="small" />
+                    )}
                 </button>
                 <button
                     onClick={() => onSelect('C')}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${
-                        currentType === 'C' ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                    className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors duration-200 cursor-pointer ${
+                        currentType === 'C'
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900'
                     }`}
                 >
-                    C - Categorical
+                    <span>C - Categorical</span>
+                    {currentType === 'C' && (
+                        <CheckIcon className="text-blue-600 ml-2" fontSize="small" />
+                    )}
                 </button>
             </div>
         </div>

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import CheckIcon from '@mui/icons-material/Check';
 
 export type SortOption = 'No Sort' | 'Ascending' | 'Descending' | 'Alphabetical' | 'Reverse Alphabetical';
 
@@ -9,6 +10,7 @@ interface FilterDropdownProps {
     currentSort: SortOption;
     position: { x: number; y: number } | null;
     filterType: 'feature' | 'number' | 'percentage';
+    buttonPosition?: { x: number; y: number; width: number; height: number } | null;
 }
 
 const FilterDropdown: React.FC<FilterDropdownProps> = ({
@@ -17,13 +19,31 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
     onSelect,
     currentSort,
     position,
-    filterType
+    filterType,
+    buttonPosition
 }) => {
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                // Check if the click is within the button's bounding box
+                if (buttonPosition) {
+                    const clickX = event.clientX;
+                    const clickY = event.clientY;
+                    const buttonLeft = buttonPosition.x - buttonPosition.width / 2;
+                    const buttonRight = buttonPosition.x + buttonPosition.width / 2;
+                    const buttonTop = buttonPosition.y;
+                    const buttonBottom = buttonPosition.y + buttonPosition.height;
+                    
+                    // If click is within button bounds, don't close
+                    if (clickX >= buttonLeft && clickX <= buttonRight && 
+                        clickY >= buttonTop && clickY <= buttonBottom) {
+                            console.log("click is within button bounds");
+                        return;
+                    }
+                }
+                
                 onClose();
             }
         };
@@ -43,7 +63,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
             document.removeEventListener('mousedown', handleClickOutside);
             document.removeEventListener('keydown', handleKeyDown);
         };
-    }, [isOpen, onClose]);
+    }, [isOpen]);
 
     if (!isOpen || !position) {
         return null;
@@ -52,8 +72,6 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
     const getSortOptions = () => {
         const nameOptions: SortOption[] = ['No Sort', 'Alphabetical', 'Reverse Alphabetical'];
         const baseOptions: SortOption[] = ['No Sort', 'Ascending', 'Descending'];
-        
-        
         if (filterType === 'feature') {
             return nameOptions;
         } else {
@@ -64,11 +82,12 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
     return (
         <div 
             ref={dropdownRef}
-            className="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg min-w-[140px]"
+            className="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg"
             style={{
                 left: `${position.x}px`,
                 top: `${position.y}px`,
-                transform: 'translateX(-50%)'
+                transform: 'translateX(-50%)',
+                minWidth: '180px'
             }}
         >
             <div className="py-1">
@@ -76,11 +95,17 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
                     <button
                         key={option}
                         onClick={() => onSelect(option)}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 ${
-                            currentSort === option ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                        className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors duration-200 cursor-pointer ${
+                            currentSort === option
+                                ? 'bg-blue-50 text-blue-700'
+                                : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900'
                         }`}
+                        style={{ minWidth: '100%' }}
                     >
-                        {option}
+                        <span>{option}</span>
+                        {currentSort === option && (
+                            <CheckIcon className="text-blue-600 ml-2" fontSize="small" />
+                        )}
                     </button>
                 ))}
             </div>

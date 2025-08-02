@@ -2,19 +2,21 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import DataTypeDropdown from "../common/DataTypeDropdown";
-import FilterDropdown from "../common/FilterDropdown";
-import type { SortOption } from "../common/FilterDropdown";
+import DataTypeDropdown from "./filter/DataTypeDropdown";
+import FilterDropdown from "./filter/FilterDropdown";
+import DataTypeFilterDropdown from "./filter/DataTypeFilterDropdown";
+import type { SortOption } from "./filter/FilterDropdown";
+import type { DataTypeFilter } from "./filter/DataTypeFilterDropdown";
 
 interface FeatureData {
     feature_name: string;
-    data_type: 'N' | 'C'; // Numerical or Categorical
+    data_type: "N" | "C"; // Numerical or Categorical
     number_missing: number;
     percentage_missing: number;
     most_correlated_with: {
         feature_name: string;
         correlation_value: number;
-        correlation_type: 'r' | 'V'; // Pearson or Cramer's V
+        correlation_type: "r" | "V"; // Pearson or Cramer's V
     } | null;
     informative_missingness: {
         is_informative: boolean;
@@ -26,20 +28,56 @@ const FeaturesTableCard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [features, setFeatures] = useState<FeatureData[]>([]);
-    const [openDropdown, setOpenDropdown] = useState<string | null>(null);
-    const [dropdownPosition, setDropdownPosition] = useState<{ x: number; y: number } | null>(null);
-    
+    const [openDataTypeDropdown, setOpenDataTypeDropdown] = useState<
+        string | null
+    >(null);
+    const [dataTypeDropdownPosition, setDataTypeDropdownPosition] = useState<{
+        x: number;
+        y: number;
+    } | null>(null);
+
     // Filter dropdown states
-    const [openFilterDropdown, setOpenFilterDropdown] = useState<string | null>(null);
-    const [filterDropdownPosition, setFilterDropdownPosition] = useState<{ x: number; y: number } | null>(null);
+    const [openFilterDropdown, setOpenFilterDropdown] = useState<string | null>(
+        null
+    );
+    const [filterDropdownPosition, setFilterDropdownPosition] = useState<{
+        x: number;
+        y: number;
+    } | null>(null);
+    const [filterButtonPosition, setFilterButtonPosition] = useState<{
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    } | null>(null);
+
+    // Data type filter states
+    const [openDataTypeFilterDropdown, setOpenDataTypeFilterDropdown] =
+        useState<boolean>(false);
+    const [dataTypeFilterPosition, setDataTypeFilterPosition] = useState<{
+        x: number;
+        y: number;
+    } | null>(null);
+    const [dataTypeFilterButtonPosition, setDataTypeFilterButtonPosition] =
+        useState<{
+            x: number;
+            y: number;
+            width: number;
+            height: number;
+        } | null>(null);
+    const [dataTypeFilter, setDataTypeFilter] = useState<DataTypeFilter>({
+        numerical: true,
+        categorical: true,
+    });
+
     const [sortConfig, setSortConfig] = useState<{
         feature: SortOption;
         number: SortOption;
         percentage: SortOption;
     }>({
-        feature: 'No Sort',
-        number: 'No Sort',
-        percentage: 'No Sort'
+        feature: "No Sort",
+        number: "No Sort",
+        percentage: "No Sort",
     });
 
     useEffect(() => {
@@ -55,7 +93,6 @@ const FeaturesTableCard: React.FC = () => {
                 }
             } catch (err: any) {
                 setError(err);
-                console.log(err);
             } finally {
                 setLoading(false);
             }
@@ -63,18 +100,21 @@ const FeaturesTableCard: React.FC = () => {
         fetchFeaturesData();
     }, []);
 
-    const handleDataTypeChange = async (featureName: string, newType: 'N' | 'C') => {
+    const handleDataTypeChange = async (
+        featureName: string,
+        newType: "N" | "C"
+    ) => {
         try {
             const res = await axios.patch("/api/features-table", {
                 feature_name: featureName,
-                data_type: newType
+                data_type: newType,
             });
-            
+
             if (res.data.success) {
                 // Update the local state
-                setFeatures(prevFeatures => 
-                    prevFeatures.map(feature => 
-                        feature.feature_name === featureName 
+                setFeatures((prevFeatures) =>
+                    prevFeatures.map((feature) =>
+                        feature.feature_name === featureName
                             ? { ...feature, data_type: newType }
                             : feature
                     )
@@ -85,100 +125,158 @@ const FeaturesTableCard: React.FC = () => {
         } catch (err: any) {
             console.error("Error updating data type:", err);
         } finally {
-            setOpenDropdown(null);
-            setDropdownPosition(null);
+            setOpenDataTypeDropdown(null);
+            setDataTypeDropdownPosition(null);
         }
     };
 
-    const toggleDropdown = (featureName: string, event: React.MouseEvent) => {
-        if (openDropdown === featureName) {
-            setOpenDropdown(null);
-            setDropdownPosition(null);
+    const toggleDropdown = (featureName: string, event?: React.MouseEvent) => {
+        if (openDataTypeDropdown === featureName) {
+            setOpenDataTypeDropdown(null);
+            setDataTypeDropdownPosition(null);
         } else {
-            const rect = event.currentTarget.getBoundingClientRect();
-            setDropdownPosition({
-                x: rect.left + rect.width / 2,
-                y: rect.top - 10 // Position above the button
-            });
-            setOpenDropdown(featureName);
+            if (event) {
+                const rect = event.currentTarget.getBoundingClientRect();
+                setDataTypeDropdownPosition({
+                    x: rect.left + rect.width / 2,
+                    y: rect.top - 10, // Position above the button
+                });
+            }
+            setOpenDataTypeDropdown(featureName);
         }
     };
 
-    const toggleFilterDropdown = (filterType: string, event: React.MouseEvent) => {
-        if (openFilterDropdown === filterType) {
-            setOpenFilterDropdown(null);
-            setFilterDropdownPosition(null);
-        } else {
+    const toggleFilterDropdown = (
+        filterType: string,
+        event?: React.MouseEvent
+    ) => {
+        if (openFilterDropdown !== null) {
+            closeFilterDropdown();
+            return;
+        }
+
+        if (event) {
             const rect = event.currentTarget.getBoundingClientRect();
             setFilterDropdownPosition({
                 x: rect.left + rect.width / 2,
-                y: rect.bottom + 5 // Position below the icon
+                y: rect.bottom + 5,
             });
-            setOpenFilterDropdown(filterType);
+            setFilterButtonPosition({
+                x: rect.left + rect.width / 2,
+                y: rect.top,
+                width: rect.width,
+                height: rect.height,
+            });
         }
+        setOpenFilterDropdown(filterType);
     };
 
-    const closeDropdown = () => {
-        setOpenDropdown(null);
-        setDropdownPosition(null);
-    };
+    const closeDropdown = React.useCallback(() => {
+        setOpenDataTypeDropdown(null);
+        setDataTypeDropdownPosition(null);
+    }, []);
 
-    const closeFilterDropdown = () => {
+    const closeFilterDropdown = React.useCallback(() => {
         setOpenFilterDropdown(null);
         setFilterDropdownPosition(null);
-    };
+        setFilterButtonPosition(null);
+    }, []);
 
-    const handleSortChange = (filterType: 'feature' | 'number' | 'percentage', newSort: SortOption) => {
+    const closeDataTypeFilterDropdown = React.useCallback(() => {
+        setOpenDataTypeFilterDropdown(false);
+        setDataTypeFilterPosition(null);
+        setDataTypeFilterButtonPosition(null);
+    }, []);
+
+    const handleSortChange = (
+        filterType: "feature" | "number" | "percentage",
+        newSort: SortOption
+    ) => {
         // Reset other sorts when one is selected
         const newSortConfig = {
-            feature: 'No Sort' as SortOption,
-            number: 'No Sort' as SortOption,
-            percentage: 'No Sort' as SortOption
+            feature: "No Sort" as SortOption,
+            number: "No Sort" as SortOption,
+            percentage: "No Sort" as SortOption,
         };
-        
+
         // Set the new sort for the selected filter type
         newSortConfig[filterType] = newSort;
         setSortConfig(newSortConfig);
-        
+
         // Apply sorting to features
         const sortedFeatures = [...features].sort((a, b) => {
-            if (newSort === 'No Sort') return 0;
-            
+            if (newSort === "No Sort") return 0;
+
             let comparison = 0;
             switch (filterType) {
-                case 'feature':
+                case "feature":
                     comparison = a.feature_name.localeCompare(b.feature_name);
                     break;
-                case 'number':
+                case "number":
                     comparison = a.number_missing - b.number_missing;
                     break;
-                case 'percentage':
+                case "percentage":
                     comparison = a.percentage_missing - b.percentage_missing;
                     break;
             }
-            
-            return newSort === 'Ascending' ? comparison : -comparison;
+
+            return newSort === "Ascending" ? comparison : -comparison;
         });
-        
+
         setFeatures(sortedFeatures);
         closeFilterDropdown();
     };
 
-    const getDataTypeLabel = (type: 'N' | 'C') => {
-        return type === 'N' ? 'Numerical' : 'Categorical';
+    const getDataTypeLabel = (type: "N" | "C") => {
+        return type === "N" ? "Numerical" : "Categorical";
     };
 
-    const getCorrelationTypeLabel = (type: 'r' | 'V') => {
-        return type === 'r' ? 'Pearson' : "Cramer's V";
+    const getCorrelationTypeLabel = (type: "r" | "V") => {
+        return type === "r" ? "Pearson" : "Cramer's V";
     };
 
-    const getDataTypeDisplay = (type: 'N' | 'C') => {
+    const getDataTypeDisplay = (type: "N" | "C") => {
         // Check if screen is small (you can adjust this breakpoint)
         const isSmallScreen = window.innerWidth < 768;
         return isSmallScreen ? type : getDataTypeLabel(type);
     };
 
-    const currentFeature = features.find(f => f.feature_name === openDropdown);
+    const currentFeature = features.find(
+        (f) => f.feature_name === openDataTypeDropdown
+    );
+
+    const toggleDataTypeFilterDropdown = (event?: React.MouseEvent) => {
+        if (openDataTypeFilterDropdown) {
+            closeDataTypeFilterDropdown();
+        } else {
+            if (event) {
+                const rect = event.currentTarget.getBoundingClientRect();
+                setDataTypeFilterPosition({
+                    x: rect.left + rect.width / 2,
+                    y: rect.bottom + 5,
+                });
+                setDataTypeFilterButtonPosition({
+                    x: rect.left + rect.width / 2,
+                    y: rect.top,
+                    width: rect.width,
+                    height: rect.height,
+                });
+            }
+            setOpenDataTypeFilterDropdown(true);
+        }
+    };
+
+    const handleDataTypeFilterChange = (newFilter: DataTypeFilter) => {
+        setDataTypeFilter(newFilter);
+    };
+
+    // Filter features based on data type filter
+    const filteredFeatures = features.filter((feature) => {
+        if (feature.data_type === "N" && dataTypeFilter.numerical) return true;
+        if (feature.data_type === "C" && dataTypeFilter.categorical)
+            return true;
+        return false;
+    });
 
     return (
         <div className="rounded-2xl border bg-white shadow-sm p-6 w-full">
@@ -187,7 +285,7 @@ const FeaturesTableCard: React.FC = () => {
                 Features with Missing Data
                 <InfoOutlinedIcon fontSize="small" className="text-gray-400" />
             </div>
-            
+
             {loading ? (
                 <div className="text-center text-gray-400 py-8">Loading...</div>
             ) : error ? (
@@ -198,77 +296,127 @@ const FeaturesTableCard: React.FC = () => {
                         <thead>
                             <tr className="border-b">
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1 justify-center">
                                         Data Type
-                                        <FilterListIcon fontSize="small" className="text-gray-400" />
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleDataTypeFilterDropdown(e);
+                                            }}
+                                            className={`group transition-colors duration-100 cursor-pointer p-1 rounded hover:bg-gray-200`}
+                                        >
+                                            <FilterListIcon
+                                                fontSize="small"
+                                                className="text-gray-400 group-hover:text-black transition-colors duration-200"
+                                            />
+                                        </button>
                                     </div>
                                 </th>
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1 justify-center">
                                         Feature Name
                                         <button
-                                            onClick={(e) => toggleFilterDropdown('feature', e)}
-                                            className="hover:text-black transition-colors"
+                                            onClick={(e) => {
+                                                toggleFilterDropdown(
+                                                    "feature",
+                                                    e
+                                                );
+                                            }}
+                                            className={`group transition-colors duration-100 cursor-pointer p-1 rounded hover:bg-gray-200`}
                                         >
-                                            <FilterListIcon fontSize="small" className="text-gray-400 hover:text-black" />
+                                            <FilterListIcon
+                                                fontSize="small"
+                                                className="text-gray-400 group-hover:text-black transition-colors duration-200"
+                                            />
                                         </button>
                                     </div>
                                 </th>
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1 justify-center">
                                         Number Missing
                                         <button
-                                            onClick={(e) => toggleFilterDropdown('number', e)}
-                                            className="hover:text-black transition-colors"
+                                            onClick={(e) => {
+                                                toggleFilterDropdown(
+                                                    "number",
+                                                    e
+                                                );
+                                            }}
+                                            className={`group transition-colors duration-100 cursor-pointer p-1 rounded hover:bg-gray-200`}
                                         >
-                                            <FilterListIcon fontSize="small" className="text-gray-400 hover:text-black" />
+                                            <FilterListIcon
+                                                fontSize="small"
+                                                className="text-gray-400 group-hover:text-black transition-colors duration-200"
+                                            />
                                         </button>
                                     </div>
                                 </th>
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1 justify-center">
                                         Percentage Missing
                                         <button
-                                            onClick={(e) => toggleFilterDropdown('percentage', e)}
-                                            className="hover:text-black transition-colors"
+                                            onClick={(e) => {
+                                                toggleFilterDropdown(
+                                                    "percentage",
+                                                    e
+                                                );
+                                            }}
+                                            className={`group transition-colors duration-100 cursor-pointer p-1 rounded hover:bg-gray-200`}
                                         >
-                                            <FilterListIcon fontSize="small" className="text-gray-400 hover:text-black" />
+                                            <FilterListIcon
+                                                fontSize="small"
+                                                className="text-gray-400 group-hover:text-black transition-colors duration-200"
+                                            />
                                         </button>
                                     </div>
                                 </th>
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1 justify-center">
                                         Most Correlated With
-                                        <InfoOutlinedIcon fontSize="small" className="text-gray-400" />
+                                        <InfoOutlinedIcon
+                                            fontSize="small"
+                                            className="text-gray-400"
+                                        />
                                     </div>
                                 </th>
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center gap-1 justify-center">
                                         Informative Missingness
-                                        <InfoOutlinedIcon fontSize="small" className="text-gray-400" />
+                                        <InfoOutlinedIcon
+                                            fontSize="small"
+                                            className="text-gray-400"
+                                        />
                                     </div>
                                 </th>
                             </tr>
                         </thead>
                         <tbody>
-                            {features.map((feature, index) => (
+                            {filteredFeatures.map((feature, index) => (
                                 <tr key={index} className="border-b">
                                     <td className="text-center py-3 px-2 border">
                                         <button
-                                            onClick={(e) => toggleDropdown(feature.feature_name, e)}
+                                            onClick={(e) =>
+                                                toggleDropdown(
+                                                    feature.feature_name,
+                                                    e
+                                                )
+                                            }
                                             className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 hover:scale-105 transition-all duration-200 cursor-pointer"
                                         >
-                                            {getDataTypeDisplay(feature.data_type)}
+                                            {getDataTypeDisplay(
+                                                feature.data_type
+                                            )}
                                         </button>
                                     </td>
                                     <td className="text-center py-3 px-2 border">
-                                        <a 
-                                            href="#" 
+                                        <a
+                                            href="#"
                                             className="text-blue-600 hover:text-blue-800 underline"
                                             onClick={(e) => {
                                                 e.preventDefault();
                                                 // TODO: Implement feature detail view
-                                                console.log(`Clicked on ${feature.feature_name}`);
+                                                console.log(
+                                                    `Clicked on ${feature.feature_name}`
+                                                );
                                             }}
                                         >
                                             {feature.feature_name}
@@ -284,21 +432,46 @@ const FeaturesTableCard: React.FC = () => {
                                         {feature.most_correlated_with ? (
                                             <div className="flex items-center gap-1">
                                                 <span className="text-gray-600">
-                                                    {feature.most_correlated_with.feature_name}
+                                                    {
+                                                        feature
+                                                            .most_correlated_with
+                                                            .feature_name
+                                                    }
                                                 </span>
                                                 <span className="text-xs text-gray-500">
-                                                    ({feature.most_correlated_with.correlation_type} = {feature.most_correlated_with.correlation_value})
+                                                    (
+                                                    {
+                                                        feature
+                                                            .most_correlated_with
+                                                            .correlation_type
+                                                    }{" "}
+                                                    ={" "}
+                                                    {
+                                                        feature
+                                                            .most_correlated_with
+                                                            .correlation_value
+                                                    }
+                                                    )
                                                 </span>
                                             </div>
                                         ) : (
-                                            <span className="text-gray-400">--</span>
+                                            <span className="text-gray-400">
+                                                --
+                                            </span>
                                         )}
                                     </td>
                                     <td className="text-center py-3 px-2 border">
                                         <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300">
-                                            {feature.informative_missingness.is_informative ? 'Yes' : 'No'}
+                                            {feature.informative_missingness
+                                                .is_informative
+                                                ? "Yes"
+                                                : "No"}
                                             <span className="ml-1">
-                                                (p = {feature.informative_missingness.p_value.toFixed(2)})
+                                                (p ={" "}
+                                                {feature.informative_missingness.p_value.toFixed(
+                                                    2
+                                                )}
+                                                )
                                             </span>
                                         </div>
                                     </td>
@@ -309,26 +482,49 @@ const FeaturesTableCard: React.FC = () => {
                 </div>
             )}
 
-            {/* Reusable Dropdown Component */}
             <DataTypeDropdown
-                isOpen={!!openDropdown}
+                isOpen={!!openDataTypeDropdown}
                 onClose={closeDropdown}
-                onSelect={(type) => handleDataTypeChange(openDropdown!, type)}
-                currentType={currentFeature?.data_type || 'N'}
-                position={dropdownPosition}
+                onSelect={(type) =>
+                    handleDataTypeChange(openDataTypeDropdown!, type)
+                }
+                currentType={currentFeature?.data_type || "N"}
+                position={dataTypeDropdownPosition}
             />
 
-            {/* Filter Dropdown Component */}
             <FilterDropdown
                 isOpen={!!openFilterDropdown}
                 onClose={closeFilterDropdown}
-                onSelect={(option) => handleSortChange(openFilterDropdown as 'feature' | 'number' | 'percentage', option)}
-                currentSort={sortConfig[openFilterDropdown as keyof typeof sortConfig] || 'No Sort'}
+                onSelect={(option) =>
+                    handleSortChange(
+                        openFilterDropdown as
+                            | "feature"
+                            | "number"
+                            | "percentage",
+                        option
+                    )
+                }
+                currentSort={
+                    sortConfig[openFilterDropdown as keyof typeof sortConfig] ||
+                    "No Sort"
+                }
                 position={filterDropdownPosition}
-                filterType={openFilterDropdown as 'feature' | 'number' | 'percentage'}
+                filterType={
+                    openFilterDropdown as "feature" | "number" | "percentage"
+                }
+                buttonPosition={filterButtonPosition}
+            />
+
+            <DataTypeFilterDropdown
+                isOpen={openDataTypeFilterDropdown}
+                onClose={closeDataTypeFilterDropdown}
+                onSelect={handleDataTypeFilterChange}
+                currentFilter={dataTypeFilter}
+                position={dataTypeFilterPosition}
+                buttonPosition={dataTypeFilterButtonPosition}
             />
         </div>
     );
 };
 
-export default FeaturesTableCard; 
+export default FeaturesTableCard;
