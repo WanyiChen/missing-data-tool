@@ -24,7 +24,13 @@ interface FeatureData {
     };
 }
 
-const FeaturesTableCard: React.FC = () => {
+interface MissingFeaturesTableCardProps {
+    onInfoClick: (message: string) => void;
+}
+
+const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
+    onInfoClick,
+}) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [features, setFeatures] = useState<FeatureData[]>([]);
@@ -220,7 +226,9 @@ const FeaturesTableCard: React.FC = () => {
                     break;
             }
 
-            return newSort === "Ascending" ? comparison : -comparison;
+            return newSort === "Ascending" || newSort === "Alphabetical"
+                ? comparison
+                : -comparison;
         });
 
         setFeatures(sortedFeatures);
@@ -297,7 +305,20 @@ const FeaturesTableCard: React.FC = () => {
                             <tr className="border-b">
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
                                     <div className="flex items-center gap-1 justify-center">
-                                        Data Type
+                                        <span
+                                            className="cursor-pointer hover:underline"
+                                            onClick={() => {
+                                                onInfoClick?.(
+                                                    'Data types are auto-detected. "N" stands for numerical, and "C" stands for categorical. If the auto-detection is wrong, click on the letter to change data type.\n Numerical data are numbers representing measurable quantities, such as a person\'s age and income. Categorical data are labels describing different characteristics. Categorical data has two subcategories - nominal data and ordinal data. Nominal data have no inherent order among the categories, such as a person\'s gender and hometown. Ordinal data are labels with inherent orders, such as student grades where "A" is considered better than "B."'
+                                                );
+                                            }}
+                                        >
+                                            Data Type
+                                            <InfoOutlinedIcon
+                                                fontSize="small"
+                                                className="text-gray-400"
+                                            />
+                                        </span>
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -371,7 +392,16 @@ const FeaturesTableCard: React.FC = () => {
                                 </th>
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
                                     <div className="flex items-center gap-1 justify-center">
-                                        Most Correlated With
+                                        <span
+                                            className="cursor-pointer hover:underline"
+                                            onClick={() => {
+                                                onInfoClick?.(
+                                                    'Some features are strongly correlated with other features. For numerical variables, their correlations are calculated by the correlation coefficient, denoted by r. For categorical variable, their correlations are calculated by Cramer\'s V, denoted by V.\n The "most correlated with" column shows features that have the strongest correlation with the feature listed in the "feature name" column. If more than one features are strongly associated, they will be shown by clicking on the expand (▸) button.'
+                                                );
+                                            }}
+                                        >
+                                            Most Correlated With
+                                        </span>
                                         <InfoOutlinedIcon
                                             fontSize="small"
                                             className="text-gray-400"
@@ -380,7 +410,16 @@ const FeaturesTableCard: React.FC = () => {
                                 </th>
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
                                     <div className="flex items-center gap-1 justify-center">
-                                        Informative Missingness
+                                        <span
+                                            className="cursor-pointer hover:underline"
+                                            onClick={() => {
+                                                onInfoClick?.(
+                                                    "Sometimes, the fact that some cases are missing some particular features can be informative. For instance, in a hypothetical financial dataset, if people with lower credit scores are less likely to report their credit scores, then whether a person's credit score is missing is informative. Informative missingness often happens when data is Missing Not at Random (MNAR). \nIn the table, informative missingness is calculated by testing the relationships between the user-specified target feature and the missingness of all other features. If p-value > 0.05, the missingness is considered not informative. If p-value <= 0.05, data is considered informative. \nFor more details on how the p-value is calculated, please check out this paper: Van Ness, M., Bosschieter, T. M., Halpin- Gregorio, R., & Udell, M. (2023, August). The missing indicator method: From low to high dimensions. In Proceedings of the 29th ACM SIGKDD Conference on Knowledge Discovery and Data Mining (pp. 5004-5015)."
+                                                );
+                                            }}
+                                        >
+                                            Informative Missingness
+                                        </span>
                                         <InfoOutlinedIcon
                                             fontSize="small"
                                             className="text-gray-400"
@@ -527,4 +566,4 @@ const FeaturesTableCard: React.FC = () => {
     );
 };
 
-export default FeaturesTableCard;
+export default MissingFeaturesTableCard;
