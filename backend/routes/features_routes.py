@@ -10,7 +10,6 @@ from scipy.stats import f_oneway
 
 router = APIRouter()
 
-# In-memory override store for feature data types (for demonstration)
 FEATURE_TYPE_OVERRIDES = {}
 
 def get_uploaded_dataframe(request: Request):
@@ -61,78 +60,6 @@ def calculate_eta_squared(categorical_series, numerical_series):
         print(f"Error calculating eta-squared: {str(e)}")
         return None, None
 
-def calculate_feature_correlation(df: pd.DataFrame, feature_name: str) -> Optional[Dict]:
-    """Calculate correlation between a feature and other features."""
-    try:
-        if feature_name not in df.columns:
-            return None
-            
-        correlations = {}
-        
-        for col in df.columns:
-            if col == feature_name:
-                continue
-                
-            # Skip if either feature has no missing values (no variation)
-            if df[feature_name].isnull().all() or df[col].isnull().all():
-                continue
-                
-            if df[feature_name].dtype in ['int64', 'float64'] and df[col].dtype in ['int64', 'float64']:
-                # Both features are numerical - use Pearson correlation
-                valid_mask = ~(df[feature_name].isnull() | df[col].isnull())
-                if valid_mask.sum() > 10:  # Need sufficient data
-                    corr, p_value = stats.pearsonr(
-                        df[feature_name][valid_mask], 
-                        df[col][valid_mask]
-                    )
-                    if not np.isnan(corr):
-                        correlations[col] = {
-                            "feature_name": col,
-                            "correlation_value": round(corr, 3),
-                            "correlation_type": "r",
-                            "p_value": p_value
-                        }
-            elif df[feature_name].dtype in ['int64', 'float64'] or df[col].dtype in ['int64', 'float64']:
-                # One numerical, one categorical - use Eta-squared
-                numerical_col = df[feature_name] if df[feature_name].dtype in ['int64', 'float64'] else df[col]
-                categorical_col = df[col] if df[col].dtype not in ['int64', 'float64'] else df[feature_name]
-                
-                eta_squared, p_value = calculate_eta_squared(categorical_col, numerical_col)
-                if eta_squared is not None and not np.isnan(eta_squared):
-                    correlations[col] = {
-                        "feature_name": col,
-                        "correlation_value": round(eta_squared, 3),
-                        "correlation_type": "η²",
-                        "p_value": p_value
-                    }
-            else:
-                # Both features are categorical - use Cramer's V
-                valid_mask = ~(df[feature_name].isnull() | df[col].isnull())
-                if valid_mask.sum() > 10:
-                    contingency_table = pd.crosstab(df[feature_name][valid_mask], df[col][valid_mask])
-                    if contingency_table.shape[0] > 1 and contingency_table.shape[1] > 1:
-                        chi2, p_value, dof, expected = chi2_contingency(contingency_table)
-                        n = valid_mask.sum()
-                        min_dim = min(contingency_table.shape) - 1
-                        if min_dim > 0:
-                            cramer_v = np.sqrt(chi2 / (n * min_dim))
-                            if not np.isnan(cramer_v):
-                                correlations[col] = {
-                                    "feature_name": col,
-                                    "correlation_value": round(cramer_v, 3),
-                                    "correlation_type": "V",
-                                    "p_value": p_value
-                                }
-        
-        # Return the feature with highest absolute correlation
-        if correlations:
-            best_corr = max(correlations.values(), key=lambda x: abs(x["correlation_value"]))
-            return best_corr
-            
-        return None
-    except Exception as e:
-        print(f"Error calculating correlation for {feature_name}: {str(e)}")
-        return None
 
 def calculate_feature_correlations_with_thresholds(
     df: pd.DataFrame, 

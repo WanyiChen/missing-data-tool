@@ -2,8 +2,9 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { DataTypeDropdown, FilterDropdown, DataTypeFilterDropdown } from "./filter";
-import type { SortOption, DataTypeFilter } from "./filter";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import { DataTypeDropdown, FilterDropdown, DataTypeFilterDropdown, CorrelationFilterDropdown, CorrelationDetailsDropdown } from "./filter";
+import type { SortOption, DataTypeFilter, CorrelationFilter } from "./filter";
 
 interface FeatureData {
     feature_name: string;
@@ -13,12 +14,21 @@ interface FeatureData {
     most_correlated_with: {
         feature_name: string;
         correlation_value: number;
-        correlation_type: "r" | "V"; // Pearson or Cramer's V
+        correlation_type: "r" | "V" | "η²"; // Pearson, Cramer's V, or Eta-squared
     } | null;
+    correlated_features?: {
+        feature_name: string;
+        correlation_value: number;
+        correlation_type: "r" | "V" | "η²";
+        p_value: number;
+    }[]; // Store all correlations that meet thresholds
     informative_missingness: {
         is_informative: boolean;
         p_value: number;
     };
+    // Loading states for async data
+    isLoadingCorrelation?: boolean;
+    isLoadingInformative?: boolean;
 }
 
 interface MissingFeaturesTableCardProps {
@@ -73,6 +83,41 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
         categorical: true,
     });
 
+    // Correlation filter states
+    const [openCorrelationFilterDropdown, setOpenCorrelationFilterDropdown] =
+        useState<boolean>(false);
+    const [correlationFilterPosition, setCorrelationFilterPosition] = useState<{
+        x: number;
+        y: number;
+    } | null>(null);
+    const [correlationFilterButtonPosition, setCorrelationFilterButtonPosition] =
+        useState<{
+            x: number;
+            y: number;
+            width: number;
+            height: number;
+        } | null>(null);
+    const [correlationFilter, setCorrelationFilter] = useState<CorrelationFilter>({
+        correlations: true,
+        noCorrelations: true,
+        pearsonThreshold: 0.7,
+        cramerVThreshold: 0.7,
+        etaSquaredThreshold: 0.7,
+    });
+
+    // Correlation details dropdown states
+    const [openCorrelationDetailsDropdown, setOpenCorrelationDetailsDropdown] = useState<string | null>(null);
+    const [correlationDetailsPosition, setCorrelationDetailsPosition] = useState<{
+        x: number;
+        y: number;
+    } | null>(null);
+    const [correlationDetailsButtonPosition, setCorrelationDetailsButtonPosition] = useState<{
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    } | null>(null);
+
     const [sortConfig, setSortConfig] = useState<{
         feature: SortOption;
         number: SortOption;
@@ -83,6 +128,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
         percentage: "No Sort",
     });
 
+    // Load basic feature data
     useEffect(() => {
         const fetchFeaturesData = async () => {
             setLoading(true);
@@ -90,7 +136,18 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
             try {
                 const res = await axios.get("/api/missing-features-table");
                 if (res.data.success) {
-                    setFeatures(res.data.features);
+                    // Initialize features with loading states
+                    const featuresWithLoading = res.data.features.map((feature: FeatureData) => ({
+                        ...feature,
+                        isLoadingCorrelation: true,
+                        isLoadingInformative: true,
+                    }));
+                    setFeatures(featuresWithLoading);
+                    
+                    // Start loading detailed analysis for each feature
+                    featuresWithLoading.forEach((feature: FeatureData) => {
+                        loadFeatureAnalysis(feature.feature_name);
+                    });
                 } else {
                     setError(res.data.message || "Failed to fetch data");
                 }
@@ -102,6 +159,73 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
         };
         fetchFeaturesData();
     }, []);
+
+    // Reload feature analysis when correlation filter thresholds change
+    useEffect(() => {
+        if (features.length > 0) {
+            features.forEach((feature: FeatureData) => {
+                loadFeatureAnalysis(feature.feature_name);
+            });
+        }
+    }, [correlationFilter.pearsonThreshold, correlationFilter.cramerVThreshold, correlationFilter.etaSquaredThreshold]);
+
+    // Load detailed analysis for a specific feature
+    const loadFeatureAnalysis = async (featureName: string) => {
+        try {
+            const params = new URLSearchParams({
+                pearson_threshold: correlationFilter.pearsonThreshold.toString(),
+                cramer_v_threshold: correlationFilter.cramerVThreshold.toString(),
+                eta_squared_threshold: correlationFilter.etaSquaredThreshold.toString(),
+            });
+            
+            const res = await axios.get(`/api/feature-details/${encodeURIComponent(featureName)}?${params}`);
+            if (res.data.success) {
+                setFeatures((prevFeatures: FeatureData[]) =>
+                    prevFeatures.map((feature: FeatureData) =>
+                        feature.feature_name === featureName
+                            ? {
+                                  ...feature,
+                                  most_correlated_with: res.data.correlated_features.length > 0 
+                                      ? res.data.correlated_features[0] 
+                                      : null, // Keep the first one for now, we'll update the UI later
+                                  correlated_features: res.data.correlated_features, // Store all correlations
+                                  informative_missingness: res.data.informative_missingness,
+                                  isLoadingCorrelation: false,
+                                  isLoadingInformative: false,
+                              }
+                            : feature
+                    )
+                );
+            } else {
+                // Mark as loaded even if failed to prevent infinite loading
+                setFeatures((prevFeatures: FeatureData[]) =>
+                    prevFeatures.map((feature: FeatureData) =>
+                        feature.feature_name === featureName
+                            ? {
+                                  ...feature,
+                                  isLoadingCorrelation: false,
+                                  isLoadingInformative: false,
+                              }
+                            : feature
+                    )
+                );
+            }
+        } catch (err: any) {
+            console.error(`Error loading analysis for ${featureName}:`, err);
+            // Mark as loaded even if failed to prevent infinite loading
+            setFeatures((prevFeatures: FeatureData[]) =>
+                prevFeatures.map((feature: FeatureData) =>
+                    feature.feature_name === featureName
+                        ? {
+                              ...feature,
+                              isLoadingCorrelation: false,
+                              isLoadingInformative: false,
+                          }
+                        : feature
+                )
+            );
+        }
+    };
 
     const handleDataTypeChange = async (
         featureName: string,
@@ -115,8 +239,8 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
 
             if (res.data.success) {
                 // Update the local state
-                setFeatures((prevFeatures) =>
-                    prevFeatures.map((feature) =>
+                setFeatures((prevFeatures: FeatureData[]) =>
+                    prevFeatures.map((feature: FeatureData) =>
                         feature.feature_name === featureName
                             ? { ...feature, data_type: newType }
                             : feature
@@ -191,6 +315,18 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
         setDataTypeFilterButtonPosition(null);
     }, []);
 
+    const closeCorrelationFilterDropdown = React.useCallback(() => {
+        setOpenCorrelationFilterDropdown(false);
+        setCorrelationFilterPosition(null);
+        setCorrelationFilterButtonPosition(null);
+    }, []);
+
+    const closeCorrelationDetailsDropdown = React.useCallback(() => {
+        setOpenCorrelationDetailsDropdown(null);
+        setCorrelationDetailsPosition(null);
+        setCorrelationDetailsButtonPosition(null);
+    }, []);
+
     const handleSortChange = (
         filterType: "feature" | "number" | "percentage",
         newSort: SortOption
@@ -236,8 +372,17 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
         return type === "N" ? "Numerical" : "Categorical";
     };
 
-    const getCorrelationTypeLabel = (type: "r" | "V") => {
-        return type === "r" ? "Pearson" : "Cramer's V";
+    const getCorrelationTypeLabel = (type: "r" | "V" | "η²") => {
+        switch (type) {
+            case "r":
+                return "Pearson";
+            case "V":
+                return "Cramer's V";
+            case "η²":
+                return "Eta-squared";
+            default:
+                return type;
+        }
     };
 
     const getDataTypeDisplay = (type: "N" | "C") => {
@@ -271,16 +416,87 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
         }
     };
 
+    const toggleCorrelationFilterDropdown = (event?: React.MouseEvent) => {
+        if (openCorrelationFilterDropdown) {
+            closeCorrelationFilterDropdown();
+        } else {
+            if (event) {
+                const rect = event.currentTarget.getBoundingClientRect();
+                setCorrelationFilterPosition({
+                    x: rect.left + rect.width / 2,
+                    y: rect.bottom + 5,
+                });
+                setCorrelationFilterButtonPosition({
+                    x: rect.left + rect.width / 2,
+                    y: rect.top,
+                    width: rect.width,
+                    height: rect.height,
+                });
+            }
+            setOpenCorrelationFilterDropdown(true);
+        }
+    };
+
+    const toggleCorrelationDetailsDropdown = (featureName: string, event?: React.MouseEvent) => {
+        if (openCorrelationDetailsDropdown === featureName) {
+            closeCorrelationDetailsDropdown();
+        } else {
+            if (event) {
+                const rect = event.currentTarget.getBoundingClientRect();
+                setCorrelationDetailsPosition({
+                    x: rect.left + rect.width / 2,
+                    y: rect.bottom + 5,
+                });
+                setCorrelationDetailsButtonPosition({
+                    x: rect.left + rect.width / 2,
+                    y: rect.top,
+                    width: rect.width,
+                    height: rect.height,
+                });
+            }
+            setOpenCorrelationDetailsDropdown(featureName);
+        }
+    };
+
     const handleDataTypeFilterChange = (newFilter: DataTypeFilter) => {
         setDataTypeFilter(newFilter);
     };
 
-    // Filter features based on data type filter
+    const handleCorrelationFilterChange = (newFilter: CorrelationFilter) => {
+        setCorrelationFilter(newFilter);
+    };
+
+    // Filter features based on data type filter and correlation filter
     const filteredFeatures = features.filter((feature: FeatureData) => {
-        if (feature.data_type === "N" && dataTypeFilter.numerical) return true;
-        if (feature.data_type === "C" && dataTypeFilter.categorical)
-            return true;
-        return false;
+        // Data type filtering
+        const passesDataTypeFilter = 
+            (feature.data_type === "N" && dataTypeFilter.numerical) ||
+            (feature.data_type === "C" && dataTypeFilter.categorical);
+        
+        if (!passesDataTypeFilter) return false;
+
+        // Correlation filtering
+        const hasCorrelation = feature.correlated_features && feature.correlated_features.length > 0;
+        const correlationPassesThreshold = hasCorrelation && (() => {
+            // Check if any correlation meets the thresholds
+            return feature.correlated_features!.some(correlation => {
+                switch (correlation.correlation_type) {
+                    case "r":
+                        return Math.abs(correlation.correlation_value) >= correlationFilter.pearsonThreshold;
+                    case "V":
+                        return correlation.correlation_value >= correlationFilter.cramerVThreshold;
+                    case "η²":
+                        return correlation.correlation_value >= correlationFilter.etaSquaredThreshold;
+                    default:
+                        return false;
+                }
+            });
+        })();
+
+        const shouldShowCorrelations = correlationFilter.correlations && correlationPassesThreshold;
+        const shouldShowNoCorrelations = correlationFilter.noCorrelations && !hasCorrelation;
+
+        return shouldShowCorrelations || shouldShowNoCorrelations;
     });
 
     return (
@@ -403,6 +619,18 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                             fontSize="small"
                                             className="text-gray-400"
                                         />
+                                        <button
+                                            onClick={(e: React.MouseEvent) => {
+                                                e.stopPropagation();
+                                                toggleCorrelationFilterDropdown(e);
+                                            }}
+                                            className={`group transition-colors duration-100 cursor-pointer p-1 rounded hover:bg-gray-200`}
+                                        >
+                                            <FilterListIcon
+                                                fontSize="small"
+                                                className="text-gray-400 group-hover:text-black transition-colors duration-200"
+                                            />
+                                        </button>
                                     </div>
                                 </th>
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
@@ -465,30 +693,48 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                         {feature.percentage_missing.toFixed(2)}%
                                     </td>
                                     <td className="text-center py-3 px-2 border">
-                                        {feature.most_correlated_with ? (
-                                            <div className="flex items-center gap-1">
-                                                <span className="text-gray-600">
-                                                    {
-                                                        feature
-                                                            .most_correlated_with
-                                                            .feature_name
-                                                    }
-                                                </span>
-                                                <span className="text-xs text-gray-500">
-                                                    (
-                                                    {
-                                                        feature
-                                                            .most_correlated_with
-                                                            .correlation_type
-                                                    }{" "}
-                                                    ={" "}
-                                                    {
-                                                        feature
-                                                            .most_correlated_with
-                                                            .correlation_value
-                                                    }
-                                                    )
-                                                </span>
+                                        {feature.isLoadingCorrelation ? (
+                                            <div className="flex items-center justify-center">
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                                                <span className="ml-2 text-xs text-gray-500">Loading...</span>
+                                            </div>
+                                        ) : feature.most_correlated_with ? (
+                                            <div className="flex items-center gap-1 justify-center">
+                                                <div className="flex items-center gap-1">
+                                                    <span className="text-gray-600">
+                                                        {
+                                                            feature
+                                                                .most_correlated_with
+                                                                .feature_name
+                                                        }
+                                                    </span>
+                                                    <span className="text-xs text-gray-500">
+                                                        (
+                                                        {
+                                                            feature
+                                                                .most_correlated_with
+                                                                .correlation_type
+                                                        }{" "}
+                                                        ={" "}
+                                                        {
+                                                            feature
+                                                                .most_correlated_with
+                                                                .correlation_value
+                                                        }
+                                                        )
+                                                    </span>
+                                                </div>
+                                                {feature.correlated_features && feature.correlated_features.length > 1 && (
+                                                    <button
+                                                        onClick={(e: React.MouseEvent) => {
+                                                            e.stopPropagation();
+                                                            toggleCorrelationDetailsDropdown(feature.feature_name, e);
+                                                        }}
+                                                        className="ml-1 text-gray-400 hover:text-gray-600 transition-colors duration-200 cursor-pointer"
+                                                    >
+                                                        <ArrowDropDownIcon fontSize="small" />
+                                                    </button>
+                                                )}
                                             </div>
                                         ) : (
                                             <span className="text-gray-400">
@@ -497,19 +743,26 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                         )}
                                     </td>
                                     <td className="text-center py-3 px-2 border">
-                                        <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300">
-                                            {feature.informative_missingness
-                                                .is_informative
-                                                ? "Yes"
-                                                : "No"}
-                                            <span className="ml-1">
-                                                (p ={" "}
-                                                {feature.informative_missingness.p_value.toFixed(
-                                                    2
-                                                )}
-                                                )
-                                            </span>
-                                        </div>
+                                        {feature.isLoadingInformative ? (
+                                            <div className="flex items-center justify-center">
+                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                                                <span className="ml-2 text-xs text-gray-500">Loading...</span>
+                                            </div>
+                                        ) : (
+                                            <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300">
+                                                {feature.informative_missingness
+                                                    .is_informative
+                                                    ? "Yes"
+                                                    : "No"}
+                                                <span className="ml-1">
+                                                    (p ={" "}
+                                                    {feature.informative_missingness.p_value.toFixed(
+                                                        2
+                                                    )}
+                                                    )
+                                                </span>
+                                            </div>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
@@ -558,6 +811,23 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                 currentFilter={dataTypeFilter}
                 position={dataTypeFilterPosition}
                 buttonPosition={dataTypeFilterButtonPosition}
+            />
+
+            <CorrelationFilterDropdown
+                isOpen={openCorrelationFilterDropdown}
+                onClose={closeCorrelationFilterDropdown}
+                onSelect={handleCorrelationFilterChange}
+                currentFilter={correlationFilter}
+                position={correlationFilterPosition}
+                buttonPosition={correlationFilterButtonPosition}
+            />
+
+            <CorrelationDetailsDropdown
+                isOpen={!!openCorrelationDetailsDropdown}
+                onClose={closeCorrelationDetailsDropdown}
+                correlations={features.find(f => f.feature_name === openCorrelationDetailsDropdown)?.correlated_features || []}
+                position={correlationDetailsPosition}
+                buttonPosition={correlationDetailsButtonPosition}
             />
         </div>
     );
