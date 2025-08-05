@@ -48,16 +48,21 @@ const DataTypeFilterDropdown: React.FC<DataTypeFilterDropdownProps> = ({
             buttonPosition={buttonPosition}
         >
             <DropdownContent>
-                <DropdownItem
-                    label="Numerical"
-                    isSelected={currentFilter.numerical}
-                    onClick={() => handleOptionClick('numerical')}
-                />
-                <DropdownItem
-                    label="Categorical"
-                    isSelected={currentFilter.categorical}
-                    onClick={() => handleOptionClick('categorical')}
-                />
+                <div className="px-4 py-2">
+                    <div className="font-medium text-gray-700 mb-3">
+                        Filter
+                    </div>
+                    <DropdownItem
+                        label="Numerical"
+                        isSelected={currentFilter.numerical}
+                        onClick={() => handleOptionClick('numerical')}
+                    />
+                    <DropdownItem
+                        label="Categorical"
+                        isSelected={currentFilter.categorical}
+                        onClick={() => handleOptionClick('categorical')}
+                    />
+                </div>
             </DropdownContent>
         </Dropdown>
     );
