@@ -1,5 +1,7 @@
-import React, { useEffect, useRef } from "react";
-import CheckIcon from '@mui/icons-material/Check';
+import React from "react";
+import Dropdown from "./Dropdown";
+import DropdownItem from "./DropdownItem";
+import DropdownContent from "./DropdownContent";
 
 export type SortOption = 'No Sort' | 'Ascending' | 'Descending' | 'Alphabetical' | 'Reverse Alphabetical';
 
@@ -22,53 +24,6 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
     filterType,
     buttonPosition
 }) => {
-    const dropdownRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                // Check if the click is within the button's bounding box
-                if (buttonPosition) {
-                    const clickX = event.clientX;
-                    const clickY = event.clientY;
-                    const buttonLeft = buttonPosition.x - buttonPosition.width / 2;
-                    const buttonRight = buttonPosition.x + buttonPosition.width / 2;
-                    const buttonTop = buttonPosition.y;
-                    const buttonBottom = buttonPosition.y + buttonPosition.height;
-                    
-                    // If click is within button bounds, don't close
-                    if (clickX >= buttonLeft && clickX <= buttonRight && 
-                        clickY >= buttonTop && clickY <= buttonBottom) {
-                            console.log("click is within button bounds");
-                        return;
-                    }
-                }
-                
-                onClose();
-            }
-        };
-
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                onClose();
-            }
-        };
-
-        if (isOpen) {
-            document.addEventListener('mousedown', handleClickOutside);
-            document.addEventListener('keydown', handleKeyDown);
-        }
-
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-            document.removeEventListener('keydown', handleKeyDown);
-        };
-    }, [isOpen]);
-
-    if (!isOpen || !position) {
-        return null;
-    }
-
     const getSortOptions = () => {
         const nameOptions: SortOption[] = ['No Sort', 'Alphabetical', 'Reverse Alphabetical'];
         const baseOptions: SortOption[] = ['No Sort', 'Ascending', 'Descending'];
@@ -80,36 +35,23 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
     };
 
     return (
-        <div 
-            ref={dropdownRef}
-            className="fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg"
-            style={{
-                left: `${position.x}px`,
-                top: `${position.y}px`,
-                transform: 'translateX(-50%)',
-                minWidth: '180px'
-            }}
+        <Dropdown
+            isOpen={isOpen}
+            onClose={onClose}
+            position={position}
+            buttonPosition={buttonPosition}
         >
-            <div className="py-1">
+            <DropdownContent>
                 {getSortOptions().map((option) => (
-                    <button
+                    <DropdownItem
                         key={option}
+                        label={option}
+                        isSelected={currentSort === option}
                         onClick={() => onSelect(option)}
-                        className={`w-full text-left px-4 py-2.5 text-sm flex items-center justify-between transition-colors duration-200 cursor-pointer ${
-                            currentSort === option
-                                ? 'bg-blue-50 text-blue-700'
-                                : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900'
-                        }`}
-                        style={{ minWidth: '100%' }}
-                    >
-                        <span>{option}</span>
-                        {currentSort === option && (
-                            <CheckIcon className="text-blue-600 ml-2" fontSize="small" />
-                        )}
-                    </button>
+                    />
                 ))}
-            </div>
-        </div>
+            </DropdownContent>
+        </Dropdown>
     );
 };
 
