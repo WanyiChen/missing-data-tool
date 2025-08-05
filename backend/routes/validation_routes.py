@@ -97,6 +97,9 @@ def reformatData(addFeatureNames: bool, missing_data_options: Dict, request: Req
             le = LabelEncoder()
             df_encoded[col] = le.fit_transform(df_encoded[col].astype(str)) # Handle categorical data by converting to ints
     
+    # Ensure label encoding doesn't replace NaN values
+    df_encoded.where(~df.isna(), df, inplace=True)
+
     request.app.state.df = df_encoded
 
     return None
@@ -106,8 +109,6 @@ async def submit_data(request: Request, featureNames: str = File(...), missingDa
     
     if not featureNames:
         return JSONResponse(status_code=400, content={"success": False, "message": "Feature names are required."})
-
-    print(f"Feature Names: {featureNames}")
 
     try:
         missing_data_options = json.loads(missingDataOptions)
