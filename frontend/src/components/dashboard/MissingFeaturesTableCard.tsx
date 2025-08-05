@@ -2,11 +2,8 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import DataTypeDropdown from "./filter/DataTypeDropdown";
-import FilterDropdown from "./filter/FilterDropdown";
-import DataTypeFilterDropdown from "./filter/DataTypeFilterDropdown";
-import type { SortOption } from "./filter/FilterDropdown";
-import type { DataTypeFilter } from "./filter/DataTypeFilterDropdown";
+import { DataTypeDropdown, FilterDropdown, DataTypeFilterDropdown } from "./filter";
+import type { SortOption, DataTypeFilter } from "./filter";
 
 interface FeatureData {
     feature_name: string;
@@ -30,7 +27,7 @@ interface MissingFeaturesTableCardProps {
 
 const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
     onInfoClick,
-}) => {
+}: MissingFeaturesTableCardProps) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [features, setFeatures] = useState<FeatureData[]>([]);
@@ -250,7 +247,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
     };
 
     const currentFeature = features.find(
-        (f) => f.feature_name === openDataTypeDropdown
+        (f: FeatureData) => f.feature_name === openDataTypeDropdown
     );
 
     const toggleDataTypeFilterDropdown = (event?: React.MouseEvent) => {
@@ -279,7 +276,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
     };
 
     // Filter features based on data type filter
-    const filteredFeatures = features.filter((feature) => {
+    const filteredFeatures = features.filter((feature: FeatureData) => {
         if (feature.data_type === "N" && dataTypeFilter.numerical) return true;
         if (feature.data_type === "C" && dataTypeFilter.categorical)
             return true;
@@ -320,7 +317,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                             />
                                         </span>
                                         <button
-                                            onClick={(e) => {
+                                            onClick={(e: React.MouseEvent) => {
                                                 e.stopPropagation();
                                                 toggleDataTypeFilterDropdown(e);
                                             }}
@@ -337,7 +334,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                     <div className="flex items-center gap-1 justify-center">
                                         Feature Name
                                         <button
-                                            onClick={(e) => {
+                                            onClick={(e: React.MouseEvent) => {
                                                 toggleFilterDropdown(
                                                     "feature",
                                                     e
@@ -356,7 +353,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                     <div className="flex items-center gap-1 justify-center">
                                         Number Missing
                                         <button
-                                            onClick={(e) => {
+                                            onClick={(e: React.MouseEvent) => {
                                                 toggleFilterDropdown(
                                                     "number",
                                                     e
@@ -375,7 +372,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                     <div className="flex items-center gap-1 justify-center">
                                         Percentage Missing
                                         <button
-                                            onClick={(e) => {
+                                            onClick={(e: React.MouseEvent) => {
                                                 toggleFilterDropdown(
                                                     "percentage",
                                                     e
@@ -429,11 +426,11 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredFeatures.map((feature, index) => (
+                            {filteredFeatures.map((feature: FeatureData, index: number) => (
                                 <tr key={index} className="border-b">
                                     <td className="text-center py-3 px-2 border">
                                         <button
-                                            onClick={(e) =>
+                                            onClick={(e: React.MouseEvent) =>
                                                 toggleDropdown(
                                                     feature.feature_name,
                                                     e
@@ -450,7 +447,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                         <a
                                             href="#"
                                             className="text-blue-600 hover:text-blue-800 underline"
-                                            onClick={(e) => {
+                                            onClick={(e: React.MouseEvent) => {
                                                 e.preventDefault();
                                                 // TODO: Implement feature detail view
                                                 console.log(
@@ -524,7 +521,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
             <DataTypeDropdown
                 isOpen={!!openDataTypeDropdown}
                 onClose={closeDropdown}
-                onSelect={(type) =>
+                onSelect={(type: "N" | "C") =>
                     handleDataTypeChange(openDataTypeDropdown!, type)
                 }
                 currentType={currentFeature?.data_type || "N"}
@@ -534,7 +531,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
             <FilterDropdown
                 isOpen={!!openFilterDropdown}
                 onClose={closeFilterDropdown}
-                onSelect={(option) =>
+                onSelect={(option: SortOption) =>
                     handleSortChange(
                         openFilterDropdown as
                             | "feature"
