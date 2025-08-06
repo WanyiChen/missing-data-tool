@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Modal } from "../components/common/modal";
 import styles from "../components/common/Button.module.css";
 import UploadIcon from "@mui/icons-material/Upload";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -15,49 +16,40 @@ function ConfirmationModal({
     onProceed: () => void;
 }) {
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-            {/* Background overlay */}
-            <div className="absolute inset-0 bg-black/20" />
-            {/* Modal content */}
-            <div
-                className="relative bg-white border-2 border-black rounded-lg shadow-2xl mx-4 p-4"
-                style={{ width: "489px", height: "152px" }}
-            >
-                {/* Close X button */}
-                <button
-                    onClick={onClose}
-                    className="absolute top-3 right-3 w-4 h-4 flex items-center justify-center text-black hover:text-gray-600 text-lg font-normal cursor-pointer"
-                >
-                    ×
-                </button>
+        <Modal
+            isOpen={true}
+            onClose={onClose}
+            overlayClassName="bg-black/20"
+            contentClassName="border-2 border-black rounded-lg shadow-2xl mx-4 p-4"
+            showCloseButton={true}
+            style={{ width: "489px", height: "152px" }}
+        >
+            {/* Content */}
+            <div className="pr-6 h-full flex flex-col justify-between">
+                <p className="text-black text-sm leading-normal mb-4">
+                    Are you sure you want to upload a new dataset? The
+                    current analysis won't be saved. Consider downloading
+                    the report before uploading a new dataset.
+                </p>
 
-                {/* Content */}
-                <div className="pr-6 h-full flex flex-col justify-between">
-                    <p className="text-black text-sm leading-normal mb-4">
-                        Are you sure you want to upload a new dataset? The
-                        current analysis won't be saved. Consider downloading
-                        the report before uploading a new dataset.
-                    </p>
-
-                    {/* Buttons */}
-                    <div className="flex gap-3 justify-center">
-                        <button
-                            onClick={onProceed}
-                            className={`${styles.button} ${styles.secondary}`}
-                            style={{ minWidth: 80 }}
-                        >
-                            Proceed to upload
-                        </button>
-                        <button
-                            onClick={onClose}
-                            className={`${styles.button} ${styles.primary}`}
-                        >
-                            Cancel
-                        </button>
-                    </div>
+                {/* Buttons */}
+                <div className="flex gap-3 justify-center">
+                    <button
+                        onClick={onProceed}
+                        className={`${styles.button} ${styles.secondary}`}
+                        style={{ minWidth: 80 }}
+                    >
+                        Proceed to upload
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className={`${styles.button} ${styles.primary}`}
+                    >
+                        Cancel
+                    </button>
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 }
 
