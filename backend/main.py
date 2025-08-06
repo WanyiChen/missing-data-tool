@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import io
 import json
+import numpy as np
 
 app = FastAPI()
 
@@ -122,4 +123,68 @@ def feature_count():
         "success": True,
         "features_with_missing": features_with_missing,
         "missing_feature_percentage": round(missing_feature_percentage, 2)
+    }
+
+@app.get("/api/missing-data-analysis")
+def missing_data_analysis():
+    global latest_uploaded_file, latest_uploaded_filename
+    if latest_uploaded_file is None:
+        return JSONResponse(status_code=400, content={"success": False, "message": "No file uploaded yet."})
+    
+    ext = os.path.splitext(latest_uploaded_filename or "")[1].lower()
+    try:
+        if ext == ".csv":
+            df = pd.read_csv(io.BytesIO(latest_uploaded_file))
+        else:
+            df = pd.read_excel(io.BytesIO(latest_uploaded_file))
+    except Exception:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Could not read uploaded file."})
+    
+    if df.empty:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Uploaded file is empty."})
+    
+    # Analyze missing data patterns
+    total_cells = df.shape[0] * df.shape[1]
+    missing_cells = df.isnull().sum().sum()
+    
+    # Count different types of missing values
+    empty_strings = 0
+    whitespace_only = 0
+    null_values = missing_cells  # pandas null values
+    
+    # Check for empty strings and whitespace-only strings
+    for col in df.columns:
+        if df[col].dtype == 'object':  # string columns
+            empty_strings += (df[col] == '').sum()
+            whitespace_only += df[col].astype(str).str.strip().eq('').sum()
+    
+    # Calculate percentages
+    missing_percentage = (missing_cells / total_cells * 100) if total_cells > 0 else 0
+    empty_string_percentage = (empty_strings / total_cells * 100) if total_cells > 0 else 0
+    whitespace_percentage = (whitespace_only / total_cells * 100) if total_cells > 0 else 0
+    
+    # Find columns with most missing data
+    missing_by_column = df.isnull().sum().to_dict()
+    columns_with_missing = {col: count for col, count in missing_by_column.items() if count > 0}
+    
+    # Sort columns by missing count
+    sorted_columns = sorted(columns_with_missing.items(), key=lambda x: x[1], reverse=True)
+    
+    return {
+        "success": True,
+        "total_cells": int(total_cells),
+        "missing_cells": int(missing_cells),
+        "missing_percentage": round(missing_percentage, 2),
+        "missing_patterns": {
+            "null_values": int(null_values),
+            "empty_strings": int(empty_strings),
+            "whitespace_only": int(whitespace_only)
+        },
+        "pattern_percentages": {
+            "null_percentage": round((null_values / total_cells * 100) if total_cells > 0 else 0, 2),
+            "empty_string_percentage": round(empty_string_percentage, 2),
+            "whitespace_percentage": round(whitespace_percentage, 2)
+        },
+        "columns_with_missing": dict(sorted_columns[:10]),  # Top 10 columns with missing data
+        "total_columns_with_missing": len(columns_with_missing)
     }
