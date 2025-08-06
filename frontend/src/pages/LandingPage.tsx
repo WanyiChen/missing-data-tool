@@ -4,6 +4,7 @@ import axios from "axios";
 import FirstQuestion from "../components/questions/FirstQuestion";
 import SecondQuestion from "../components/questions/SecondQuestion";
 import ThirdQuestion from "../components/questions/ThirdQuestion";
+import { Modal } from "../components/common/modal";
 import styles from "../components/common/Button.module.css";
 import * as XLSX from "xlsx";
 
@@ -18,24 +19,25 @@ function ErrorModal({
     onClose: () => void;
 }) {
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-8 flex flex-col items-center justify-center min-h-[300px]">
-                <h2 className="text-xl font-bold mb-4 text-center">
-                    Upload Error
-                </h2>
-                <p className="text-gray-700 mb-8 text-center">{message}</p>
-                <div className="absolute bottom-6 left-0 w-full flex justify-center">
-                    <button
-                        onClick={onClose}
-                        className={`${styles.button} ${styles.secondary}`}
-                        style={{ minWidth: 80 }}
-                    >
-                        OK
-                    </button>
-                </div>
+        <Modal
+            isOpen={true}
+            onClose={onClose}
+            contentClassName="max-w-md w-full p-8 flex flex-col items-center justify-center min-h-[300px]"
+        >
+            <h2 className="text-xl font-bold mb-4 text-center">
+                Upload Error
+            </h2>
+            <p className="text-gray-700 mb-8 text-center">{message}</p>
+            <div className="absolute bottom-6 left-0 w-full flex justify-center">
+                <button
+                    onClick={onClose}
+                    className={`${styles.button} ${styles.secondary}`}
+                    style={{ minWidth: 80 }}
+                >
+                    OK
+                </button>
             </div>
-        </div>
+        </Modal>
     );
 }
 
