@@ -7,6 +7,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import MechanismCard from "../components/dashboard/MechanismCard";
 import CaseCountCard from "../components/dashboard/CaseCountCard";
 import FeatureCountCard from "../components/dashboard/FeatureCountCard";
+import NextPageCard from "../components/dashboard/NextPageCard";
 
 function ConfirmationModal({
     onClose,
@@ -95,12 +96,17 @@ const DashboardPage: React.FC = () => {
                     </button>
                 </div>
             </header>
-            {/* Dashboard Top Row */}
+            {/* Dashboard Content */}
             <main className="flex-1 flex flex-col items-center px-4 py-8 w-full">
-                <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <MechanismCard />
-                    <CaseCountCard />
-                    <FeatureCountCard />
+                <div className="w-full max-w-6xl space-y-6">
+                    {/* Top Row - Three Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <MechanismCard />
+                        <CaseCountCard />
+                        <FeatureCountCard />
+                    </div>
+                    {/* Full Width Card */}
+                    <NextPageCard />
                 </div>
             </main>
         </div>
