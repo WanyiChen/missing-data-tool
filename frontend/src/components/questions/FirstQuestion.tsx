@@ -61,7 +61,7 @@ const FirstQuestion: React.FC<FirstQuestionProps> = ({
                             ? "(first 11 rows)"
                             : "(first 10 rows)"}
                     </div>
-                    <div className="overflow-x-auto border rounded-xl bg-white shadow max-w-full">
+                    <div className="overflow-x-auto border bg-white shadow max-w-full">
                         <table className="min-w-[600px] border-collapse">
                             <thead>
                                 <tr>
@@ -80,8 +80,8 @@ const FirstQuestion: React.FC<FirstQuestionProps> = ({
                                     ).map((col: any, i: number) => (
                                         <th
                                             key={i}
-                                            className="px-3 py-2 border-b font-semibold text-xs text-gray-700 whitespace-nowrap bg-gray-50"
-                                        >
+                                            className="px-3 py-2 border font-semibold text-xs text-gray-700 whitespace-nowrap bg-gray-50"
+                                            >
                                             {String(col)}
                                         </th>
                                     ))}
@@ -96,7 +96,7 @@ const FirstQuestion: React.FC<FirstQuestionProps> = ({
                                         {row.map((cell, j) => (
                                             <td
                                                 key={j}
-                                                className="px-3 py-2 border-b text-xs text-gray-800 whitespace-nowrap"
+                                                className="px-3 py-2 border text-xs text-gray-800 whitespace-nowrap border-b-2 border-gray-300"
                                             >
                                                 {cell === undefined
                                                     ? ""

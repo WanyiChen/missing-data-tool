@@ -176,7 +176,7 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                     <div className="text-gray-500 text-sm mb-2">
                         Dataset preview (first 10 rows)
                     </div>
-                    <div className="overflow-x-auto border rounded-xl bg-white shadow max-w-full">
+                    <div className="overflow-x-auto border bg-white shadow max-w-full">
                         <table className="min-w-[600px] border-collapse">
                             <thead>
                                 <tr>
