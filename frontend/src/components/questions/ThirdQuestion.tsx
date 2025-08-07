@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
+import styles from "../common/Button.module.css";
 
 interface ThirdQuestionProps {
+    featureNames: boolean | null;
     previewRows: any[][];
     targetFeature: string | null;
     setTargetFeature: (feature: string | null) => void;
@@ -11,6 +13,7 @@ interface ThirdQuestionProps {
 }
 
 const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
+    featureNames,
     previewRows,
     targetFeature,
     setTargetFeature,
@@ -180,7 +183,7 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                                     {columnNames.map((col, i) => (
                                         <th
                                             key={i}
-                                            className="px-3 py-2 border-b font-semibold text-xs text-gray-700 whitespace-nowrap bg-gray-50"
+                                            className="px-3 py-2 border font-semibold text-xs text-gray-700 whitespace-nowrap bg-gray-50"
                                         >
                                             {col}
                                         </th>
@@ -193,7 +196,7 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                                         {row.map((cell, j) => (
                                             <td
                                                 key={j}
-                                                className="px-3 py-2 border-b text-xs text-gray-800 whitespace-nowrap"
+                                                className="px-3 py-2 border text-xs text-gray-800 whitespace-nowrap border-b-2 border-gray-300"
                                             >
                                                 {cell === undefined
                                                     ? ""
@@ -208,26 +211,29 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                 </div>
                 <div className="flex justify-between mt-8">
                     <button
-                        className="bg-gray-100 text-black px-8 py-3 rounded-lg font-semibold text-lg hover:bg-gray-200 transition-colors"
+                        className={`${styles.button} ${styles.secondary}`}
                         onClick={onBack}
+                        style={{ minWidth: 80 }}
                     >
                         &larr; Back
                     </button>
                     <div className="flex gap-4">
                         <button
-                            className="bg-gray-200 text-black px-8 py-3 rounded-lg font-semibold text-lg hover:bg-gray-300 transition-colors"
+                            className={`${styles.button} ${styles.secondary} ml-2`}
                             onClick={() => {
                                 setTargetFeature(null);
                                 setTargetType(null);
                                 onNext();
                             }}
+                            style={{ minWidth: 80 }}
                         >
                             Skip &rarr;
                         </button>
                         <button
-                            className="bg-black text-white px-8 py-3 rounded-lg font-semibold text-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+                            className={`${styles.button} ${styles.primary} ml-2`}
                             disabled={!canProceed}
                             onClick={onNext}
+                            style={{ minWidth: 80 }}
                         >
                             Next &rarr;
                         </button>
