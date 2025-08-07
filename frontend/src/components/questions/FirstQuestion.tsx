@@ -1,4 +1,5 @@
 import React from "react";
+import styles from "../common/Button.module.css";
 
 type FirstQuestionProps = {
     previewRows: any[][];
@@ -110,11 +111,12 @@ const FirstQuestion: React.FC<FirstQuestionProps> = ({
                 </div>
                 <div className="flex justify-end">
                     <button
-                        className="bg-black text-white px-8 py-3 rounded-lg font-semibold text-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+                        className={`${styles.button} ${styles.primary} ml-2`}
                         disabled={featureNames === null}
                         onClick={onNext}
+                        style={{ minWidth: 80 }}
                     >
-                        Next &rarr;
+                    Next &rarr;
                     </button>
                 </div>
             </div>

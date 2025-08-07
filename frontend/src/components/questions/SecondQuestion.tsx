@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
+import styles from "../common/Button.module.css";
 
 interface SecondQuestionProps {
+    featureNames: boolean | null;
     previewRows: any[][];
     missingDataOptions: {
         blanks: boolean;
@@ -19,6 +21,7 @@ interface SecondQuestionProps {
 }
 
 const SecondQuestion: React.FC<SecondQuestionProps> = ({
+    featureNames,
     previewRows,
     missingDataOptions,
     setMissingDataOptions,
@@ -113,7 +116,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                                         (col: any, i: number) => (
                                             <th
                                                 key={i}
-                                                className="px-3 py-2 border-b font-semibold text-xs text-gray-700 whitespace-nowrap bg-gray-50"
+                                                className="px-3 py-2 border font-semibold text-xs text-gray-700 whitespace-nowrap bg-gray-50"
                                             >
                                                 {String(col)}
                                             </th>
@@ -127,7 +130,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                                         {row.map((cell, j) => (
                                             <td
                                                 key={j}
-                                                className="px-3 py-2 border-b text-xs text-gray-800 whitespace-nowrap"
+                                                className="px-3 py-2 border text-xs text-gray-800 whitespace-nowrap border-b-2 border-gray-300"
                                             >
                                                 {cell === undefined
                                                     ? ""
@@ -142,15 +145,17 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                 </div>
                 <div className="flex justify-between mt-8">
                     <button
-                        className="bg-gray-100 text-black px-8 py-3 rounded-lg font-semibold text-lg hover:bg-gray-200 transition-colors"
+                        className={`${styles.button} ${styles.secondary}`}
                         onClick={onBack}
+                        style={{ minWidth: 80 }}
                     >
                         &larr; Back
                     </button>
                     <button
-                        className="bg-black text-white px-8 py-3 rounded-lg font-semibold text-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
+                        className={`${styles.button} ${styles.primary} ml-2`}
                         disabled={!canProceed}
                         onClick={onNext}
+                        style={{ minWidth: 80 }}
                     >
                         Next &rarr;
                     </button>

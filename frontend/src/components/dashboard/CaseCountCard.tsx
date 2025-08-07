@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { BaseCard } from "./base";
 
 const CaseCountCard: React.FC = () => {
     const [loading, setLoading] = useState(true);
@@ -29,10 +30,7 @@ const CaseCountCard: React.FC = () => {
     }, []);
 
     return (
-        <div className="rounded-2xl border bg-white shadow-sm flex flex-col items-center p-6 min-h-[150px]">
-            <div className="text-xs text-gray-500 mb-2 text-center">
-                Total number of cases with missing data
-            </div>
+        <BaseCard title="Total Number of Cases with Missing Data">
             {loading ? (
                 <div className="text-gray-400 text-center">Loading...</div>
             ) : error ? (
@@ -42,7 +40,7 @@ const CaseCountCard: React.FC = () => {
                     {caseCount} ({missingPercent}%)
                 </div>
             )}
-        </div>
+        </BaseCard>
     );
 };
 
