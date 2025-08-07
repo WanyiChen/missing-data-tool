@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Modal } from "../components/common/modal";
@@ -7,6 +8,8 @@ import DownloadIcon from "@mui/icons-material/Download";
 import MechanismCard from "../components/dashboard/MechanismCard";
 import CaseCountCard from "../components/dashboard/CaseCountCard";
 import FeatureCountCard from "../components/dashboard/FeatureCountCard";
+import MissingFeaturesTableCard from "../components/dashboard/MissingFeaturesTableCard";
+import InfoModal from "../components/common/InfoModal";
 import NextPageCard from "../components/dashboard/NextPageCard";
 
 function ConfirmationModal({
@@ -105,6 +108,12 @@ const DashboardPage: React.FC = () => {
                         <CaseCountCard />
                         <FeatureCountCard />
                     </div>
+                    {/* Missing Features Table */}
+                    <MissingFeaturesTableCard
+                        onInfoClick={(message) =>
+                            setInfoModal({ open: true, message })
+                        }
+                    />
                     {/* Full Width Card */}
                     <NextPageCard />
                 </div>

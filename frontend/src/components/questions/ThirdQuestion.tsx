@@ -26,14 +26,8 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const columnNames: string[] = featureNames
-        ? previewRows[0]?.map((col: any, i: number) => String(col)) || []
-        : Array.from(
-              {
-                  length: Math.max(...previewRows.map((r) => r.length)),
-              },
-              (_, i) => `Feature ${i + 1}`
-          );
+    const columnNames: string[] =
+        previewRows[0]?.map((col: any, i: number) => String(col)) || [];
     const filteredColumns = columnNames.filter((name) =>
         name.toLowerCase().includes(search.toLowerCase())
     );
@@ -180,42 +174,24 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                 </div>
                 <div className="mb-6 mt-8">
                     <div className="text-gray-500 text-sm mb-2">
-                        Dataset preview{" "}
-                        {featureNames === true
-                            ? "(first 11 rows)"
-                            : "(first 10 rows)"}
+                        Dataset preview (first 10 rows)
                     </div>
-                    <div className="overflow-x-auto border bg-white shadow max-w-full">
+                    <div className="overflow-x-auto border rounded-xl bg-white shadow max-w-full">
                         <table className="min-w-[600px] border-collapse">
                             <thead>
                                 <tr>
-                                    {(featureNames === false
-                                        ? Array.from(
-                                              {
-                                                  length: Math.max(
-                                                      ...previewRows.map(
-                                                          (r) => r.length
-                                                      )
-                                                  ),
-                                              },
-                                              (_, i) => `Feature ${i + 1}`
-                                          )
-                                        : previewRows[0]
-                                    ).map((col: any, i: number) => (
+                                    {columnNames.map((col, i) => (
                                         <th
                                             key={i}
                                             className="px-3 py-2 border font-semibold text-xs text-gray-700 whitespace-nowrap bg-gray-50"
                                         >
-                                            {String(col)}
+                                            {col}
                                         </th>
                                     ))}
                                 </tr>
                             </thead>
                             <tbody>
-                                {(featureNames === false
-                                    ? previewRows.slice(0, 10)
-                                    : previewRows.slice(1, 11)
-                                ).map((row, i) => (
+                                {previewRows.slice(1, 11).map((row, i) => (
                                     <tr key={i}>
                                         {row.map((cell, j) => (
                                             <td

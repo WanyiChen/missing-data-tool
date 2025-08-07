@@ -57,9 +57,10 @@ export default function LandingPage() {
         message: string;
     }>({ open: false, message: "" });
     const [uploadSuccess, setUploadSuccess] = useState(false);
-    const [step, setStep] = useState(0); // 0: upload, 1: question
+    const [step, setStep] = useState(0);
     const [previewRows, setPreviewRows] = useState<any[][] | null>(null);
     const [featureNames, setFeatureNames] = useState<null | boolean>(null);
+    const [datasetRows, setDatasetRows] = useState<any[][] | null>(null);
     const [missingDataOptions, setMissingDataOptions] = useState({
         blanks: true,
         na: false,
@@ -168,11 +169,25 @@ export default function LandingPage() {
     if (step === 1 && previewRows) {
         const handleFirstQuestionNext = () => {
             if (!previewRows) return;
+            let processedRows: any[][];
+            if (featureNames === false) {
+                // Generate generic feature names
+                const numCols = Math.max(...previewRows.map((r) => r.length));
+                const header = Array.from(
+                    { length: numCols },
+                    (_, i) => `Feature ${i + 1}`
+                );
+                processedRows = [header, ...previewRows];
+            } else {
+                processedRows = [...previewRows];
+            }
+            setDatasetRows(processedRows);
             setStep(2);
         };
+
         return (
             <FirstQuestion
-                previewRows={previewRows || []}
+                previewRows={previewRows}
                 featureNames={featureNames}
                 setFeatureNames={setFeatureNames}
                 onBack={() => setStep(0)}
@@ -181,13 +196,12 @@ export default function LandingPage() {
         );
     }
 
-    if (step === 2 && previewRows) {
+    if (step === 2 && datasetRows) {
         const handleSecondQuestionBack = () => setStep(1);
         const handleSecondQuestionNext = () => setStep(3);
         return (
             <SecondQuestion
-                featureNames={featureNames}
-                previewRows={previewRows}
+                previewRows={datasetRows}
                 missingDataOptions={missingDataOptions}
                 setMissingDataOptions={setMissingDataOptions}
                 onBack={handleSecondQuestionBack}
@@ -196,11 +210,12 @@ export default function LandingPage() {
         );
     }
 
-    if (step === 3 && previewRows) {
+    if (step === 3 && datasetRows) {
         const handleThirdQuestionBack = () => setStep(2);
         const handleThirdQuestionNext = async () => {
             setUploading(true);
             const formData = new FormData();
+            formData.append("featureNames", featureNames ? "true" : "false");
             formData.append(
                 "missingDataOptions",
                 JSON.stringify(missingDataOptions)
@@ -228,8 +243,7 @@ export default function LandingPage() {
         };
         return (
             <ThirdQuestion
-                featureNames={featureNames}
-                previewRows={previewRows}
+                previewRows={datasetRows}
                 targetFeature={targetFeature}
                 setTargetFeature={setTargetFeature}
                 targetType={targetType}
