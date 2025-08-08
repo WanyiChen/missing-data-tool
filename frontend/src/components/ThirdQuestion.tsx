@@ -148,13 +148,41 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {previewRows.slice(1, 11).map((row, i) => (
-                  <tr key={i}>
-                    {row.map((cell, j) => (
-                      <td key={j} className="px-3 py-2 border-b text-xs text-gray-800 whitespace-nowrap">{cell === undefined ? '' : String(cell)}</td>
-                    ))}
-                  </tr>
-                ))}
+                {previewRows.slice(1, 11).map((row, i) => {
+                  // Get the header row to determine how many columns we should have
+                  const headerRow = previewRows[0];
+                  const numColumns = headerRow.length;
+                  
+                  return (
+                    <tr key={i}>
+                      {Array.from({ length: numColumns }, (_, j) => {
+                        const cell = row[j]; // Don't default to empty string
+                        
+                        // Handle both old format (direct values) and new format (objects with value/isMissing)
+                        const cellValue = typeof cell === 'object' && cell !== null && 'value' in cell ? cell.value : cell;
+                        
+                        // After processing, null values represent missing data
+                        const isMissing = cellValue === null || cellValue === undefined;
+                        
+                        // Debug: Log 0 values
+                        if (cellValue === 0) {
+                          console.log(`Found 0 value at row ${i}, col ${j}:`, cellValue, 'type:', typeof cellValue);
+                        }
+                        
+                        return (
+                          <td 
+                            key={j} 
+                            className={`px-3 py-2 border-b text-xs text-gray-800 whitespace-nowrap border-b-2 border-gray-300 ${
+                              isMissing ? 'bg-red-50 text-red-600' : ''
+                            }`}
+                          >
+                            {cellValue === undefined || cellValue === null ? '' : String(cellValue)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

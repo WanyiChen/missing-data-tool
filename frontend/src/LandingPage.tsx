@@ -48,7 +48,7 @@ export default function LandingPage() {
   const [featureNames, setFeatureNames] = useState<null | boolean>(null);
   const [datasetRows, setDatasetRows] = useState<any[][] | null>(null);
   const [missingDataOptions, setMissingDataOptions] = useState({
-    blanks: true,
+    blanks: false,
     na: false,
     other: false,
     otherText: '',
@@ -110,7 +110,34 @@ export default function LandingPage() {
             workbook = XLSX.read(data, { type: 'array' });
           }
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false }) as any[][];
+          
+          // Use a more careful parsing approach to preserve empty cells
+          const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
+          const rows: any[][] = [];
+          
+          for (let R = range.s.r; R <= range.e.r; R++) {
+            const row: any[] = [];
+            for (let C = range.s.c; C <= range.e.c; C++) {
+              const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+              const cell = sheet[cellAddress];
+              
+              if (!cell) {
+                // Empty cell - preserve as null
+                row.push(null);
+              } else if (cell.t === 'n') {
+                // Number cell
+                row.push(cell.v);
+              } else if (cell.t === 's') {
+                // String cell
+                row.push(cell.v);
+              } else {
+                // Other types
+                row.push(cell.v);
+              }
+            }
+            rows.push(row);
+          }
+          
           resolve(rows.slice(0, 12));
         } catch (err) {
           reject(err);
@@ -122,6 +149,38 @@ export default function LandingPage() {
         reader.readAsArrayBuffer(file);
       }
     });
+  };
+
+  // Auto-detect missing data patterns
+  const autoDetectMissingData = (rows: any[][]) => {
+    let hasBlanks = false;
+    let hasNA = false;
+    
+    // Skip header row
+    for (let i = 1; i < rows.length; i++) {
+      for (let j = 0; j < rows[i].length; j++) {
+        const cell = rows[i][j];
+        
+        // Check for blanks (empty strings, whitespace-only, null, undefined)
+        if (cell === null || cell === undefined || cell === '' || 
+            (typeof cell === 'string' && cell.trim() === '')) {
+          hasBlanks = true;
+        }
+        
+        // Check for N/A patterns
+        if (typeof cell === 'string') {
+          const naPatterns = ['N/A', 'NA', 'na', 'n/a', 'N/a', 'n/A'];
+          if (naPatterns.includes(cell)) {
+            hasNA = true;
+          }
+        }
+        
+        if (hasBlanks && hasNA) break; // Both detected, no need to continue
+      }
+      if (hasBlanks && hasNA) break;
+    }
+    
+    return { hasBlanks, hasNA };
   };
 
   const handleContinue = async () => {
@@ -137,7 +196,16 @@ export default function LandingPage() {
       } else {
         setFeatureNames(false);
       }
-      console.log("Feature names: ", featureNames);
+      
+      // Auto-detect missing data patterns and set defaults
+      const { hasBlanks, hasNA } = autoDetectMissingData(rows);
+      setMissingDataOptions({
+        blanks: hasBlanks,
+        na: hasNA,
+        other: false,
+        otherText: '',
+      });
+      
       setStep(1);
     } catch (err) {
       setErrorModal({ open: true, message: 'Could not parse file for preview.' });
@@ -162,19 +230,27 @@ export default function LandingPage() {
       setStep(2);
     };
     
+    const handleFirstQuestionBack = () => setStep(0);
+    
     return (
       <FirstQuestion
         previewRows={previewRows}
         featureNames={featureNames}
         setFeatureNames={setFeatureNames}
         onNext={handleFirstQuestionNext}
+        onBack={handleFirstQuestionBack}
       />
     );
   }
 
   if (step === 2 && datasetRows) {
     const handleSecondQuestionBack = () => setStep(1);
-    const handleSecondQuestionNext = () => setStep(3);
+    const handleSecondQuestionNext = (processedData?: any[][]) => {
+      if (processedData) {
+        setDatasetRows(processedData);
+      }
+      setStep(3);
+    };
     return (
       <SecondQuestion
         previewRows={datasetRows}
