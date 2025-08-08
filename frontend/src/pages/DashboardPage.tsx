@@ -9,7 +9,6 @@ import MechanismCard from "../components/dashboard/MechanismCard";
 import CaseCountCard from "../components/dashboard/CaseCountCard";
 import FeatureCountCard from "../components/dashboard/FeatureCountCard";
 import MissingFeaturesTableCard from "../components/dashboard/MissingFeaturesTableCard";
-import InfoModal from "../components/common/InfoModal";
 import NextPageCard from "../components/dashboard/NextPageCard";
 
 function ConfirmationModal({
@@ -57,8 +56,32 @@ function ConfirmationModal({
     );
 }
 
+function InfoModal({
+    message,
+    onClose,
+}: {
+    message: string;
+    onClose: () => void;
+}) {
+    return (
+        <Modal
+            isOpen={true}
+            onClose={onClose}
+            overlayClassName="bg-black/30 backdrop-blur-sm"
+            contentClassName="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-8 flex flex-col items-center justify-center min-h-[200px]"
+            showCloseButton={true}
+        >
+            <div className="text-gray-800 text-left">{message}</div>
+        </Modal>
+    );
+}
+
 const DashboardPage: React.FC = () => {
     const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [infoModal, setInfoModal] = useState<{ open: boolean; message: string }>({
+        open: false,
+        message: "",
+    });
     const navigate = useNavigate();
 
     const handleUploadNewDataset = () => {
@@ -74,12 +97,26 @@ const DashboardPage: React.FC = () => {
         setShowConfirmModal(false);
     };
 
+    const handleInfoClick = (message: string) => {
+        setInfoModal({ open: true, message });
+    };
+
+    const handleCloseInfoModal = () => {
+        setInfoModal({ open: false, message: "" });
+    };
+
     return (
         <div className="min-h-screen bg-white flex flex-col">
             {showConfirmModal && (
                 <ConfirmationModal
                     onClose={handleCloseModal}
                     onProceed={handleProceedToUpload}
+                />
+            )}
+            {infoModal.open && (
+                <InfoModal
+                    message={infoModal.message}
+                    onClose={handleCloseInfoModal}
                 />
             )}
             {/* Top Bar */}
@@ -109,11 +146,7 @@ const DashboardPage: React.FC = () => {
                         <FeatureCountCard />
                     </div>
                     {/* Missing Features Table */}
-                    <MissingFeaturesTableCard
-                        onInfoClick={(message) =>
-                            setInfoModal({ open: true, message })
-                        }
-                    />
+                    <MissingFeaturesTableCard onInfoClick={handleInfoClick} />
                     {/* Full Width Card */}
                     <NextPageCard />
                 </div>
