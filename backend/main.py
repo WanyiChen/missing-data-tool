@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import io
 import json
+import numpy as np
 
 app = FastAPI()
 
