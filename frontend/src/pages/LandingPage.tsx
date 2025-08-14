@@ -62,7 +62,7 @@ export default function LandingPage() {
     const [featureNames, setFeatureNames] = useState<null | boolean>(null);
     const [datasetRows, setDatasetRows] = useState<any[][] | null>(null);
     const [missingDataOptions, setMissingDataOptions] = useState({
-        blanks: true,
+        blanks: false,
         na: false,
         other: false,
         otherText: "",
@@ -79,6 +79,92 @@ export default function LandingPage() {
     const onBrowseClick = () => {
         if (fileInputRef.current) fileInputRef.current.value = "";
         fileInputRef.current?.click();
+    };
+
+    // Auto-detect missing data patterns
+    const autoDetectMissingData = (rows: any[][]) => {
+        let hasBlanks = false;
+        let hasNA = false;
+        
+        // Skip header row
+        for (let i = 1; i < rows.length; i++) {
+            for (let j = 0; j < rows[i].length; j++) {
+                const cell = rows[i][j];
+                
+                // Check for blanks (empty strings, whitespace-only, null, undefined)
+                if (cell === null || cell === undefined || cell === '' || 
+                    (typeof cell === 'string' && cell.trim() === '')) {
+                    hasBlanks = true;
+                }
+                
+                // Check for N/A patterns
+                if (typeof cell === 'string') {
+                    const naPatterns = ['N/A', 'NA', 'na', 'n/a', 'N/a', 'n/A'];
+                    if (naPatterns.includes(cell)) {
+                        hasNA = true;
+                    }
+                }
+                
+                if (hasBlanks && hasNA) break; // Both detected, no need to continue
+            }
+            if (hasBlanks && hasNA) break;
+        }
+        
+        return { hasBlanks, hasNA };
+    };
+
+    const parseFilePreview = (file: File): Promise<any[][]> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = e.target?.result;
+                    let workbook;
+                    if (file.name.endsWith(".csv")) {
+                        workbook = XLSX.read(data, { type: "string" });
+                    } else {
+                        workbook = XLSX.read(data, { type: "array" });
+                    }
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    
+                    // Use a more careful parsing approach to preserve empty cells
+                    const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
+                    const rows: any[][] = [];
+                    
+                    for (let R = range.s.r; R <= range.e.r; R++) {
+                        const row: any[] = [];
+                        for (let C = range.s.c; C <= range.e.c; C++) {
+                            const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                            const cell = sheet[cellAddress];
+                            
+                            if (!cell) {
+                                // Empty cell - preserve as null
+                                row.push(null);
+                            } else if (cell.t === 'n') {
+                                // Number cell
+                                row.push(cell.v);
+                            } else if (cell.t === 's') {
+                                // String cell
+                                row.push(cell.v);
+                            } else {
+                                // Other types
+                                row.push(cell.v);
+                            }
+                        }
+                        rows.push(row);
+                    }
+                    
+                    resolve(rows.slice(0, 12));
+                } catch (err) {
+                    reject(err);
+                }
+            };
+            if (file.name.endsWith(".csv")) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
+        });
     };
 
     const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,36 +194,6 @@ export default function LandingPage() {
                 headers: { "Content-Type": "multipart/form-data" },
             });
             // Parse file in browser for preview
-            const parseFilePreview = (file: File): Promise<any[][]> => {
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        try {
-                            const data = e.target?.result;
-                            let workbook;
-                            if (file.name.endsWith(".csv")) {
-                                workbook = XLSX.read(data, { type: "string" });
-                            } else {
-                                workbook = XLSX.read(data, { type: "array" });
-                            }
-                            const sheet =
-                                workbook.Sheets[workbook.SheetNames[0]];
-                            const rows = XLSX.utils.sheet_to_json(sheet, {
-                                header: 1,
-                                blankrows: false,
-                            }) as any[][];
-                            resolve(rows.slice(0, 12));
-                        } catch (err) {
-                            reject(err);
-                        }
-                    };
-                    if (file.name.endsWith(".csv")) {
-                        reader.readAsText(file);
-                    } else {
-                        reader.readAsArrayBuffer(file);
-                    }
-                });
-            };
             const rows = await parseFilePreview(file);
             setPreviewRows(rows);
             const firstRow = rows[0];
@@ -149,6 +205,16 @@ export default function LandingPage() {
             } else {
                 setFeatureNames(false);
             }
+
+            // Auto-detect missing data patterns and set defaults
+            const { hasBlanks, hasNA } = autoDetectMissingData(rows);
+            setMissingDataOptions({
+                blanks: hasBlanks,
+                na: hasNA,
+                other: false,
+                otherText: '',
+            });
+
             setStep(1);
         } catch (error: any) {
             let message = "An unknown error occurred.";
