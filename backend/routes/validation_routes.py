@@ -352,32 +352,11 @@ async def dataset_preview_live(
     except Exception:
         return JSONResponse(status_code=400, content={"success": False, "message": "Invalid missingDataOptions format."})
 
-    file = getattr(request.app.state, "latest_uploaded_file", None)
-    filename = getattr(request.app.state, "latest_uploaded_filename", None)
-    ext = os.path.splitext(filename or "")[1].lower() if filename else ""
+    # Get uploaded dataframe
     df = getattr(request.app.state, "df", None)
-
-    # If featureNames is provided, reconstruct the DataFrame
-    if featureNames is not None and file is not None:
-        try:
-            if ext == ".csv":
-                if featureNames == "false":
-                    df = pd.read_csv(io.BytesIO(file), header=None)
-                    df.columns = [f"Feature {i+1}" for i in range(len(df.columns))]
-                else:
-                    df = pd.read_csv(io.BytesIO(file))
-            else:
-                if featureNames == "false":
-                    df = pd.read_excel(io.BytesIO(file), header=None)
-                    df.columns = [f"Feature {i+1}" for i in range(len(df.columns))]
-                else:
-                    df = pd.read_excel(io.BytesIO(file))
-        except Exception:
-            return JSONResponse(status_code=400, content={"success": False, "message": "Could not read uploaded file."})
-
-    if df is None or df.empty:
-        return JSONResponse(status_code=400, content={"success": False, "message": "No data processed yet."})
-
+    if df is None:
+        return JSONResponse(status_code=400, content={"success": False, "message": "No data processed yet. Please complete question 1 first."})
+    
     # Apply missing data options
     df_preview = df.copy()
     if missing_data_options.get("na", False):
@@ -416,4 +395,56 @@ async def dataset_preview_live(
         "success": True,
         "title_row": title_row,
         "data_rows": converted_data_rows
+    }
+
+@router.get("/api/missing-data-analysis")
+def missing_data_analysis(request: Request):
+    df = getattr(request.app.state, "df", None)
+    if df is None:
+        return JSONResponse(status_code=400, content={"success": False, "message": "No data processed yet. Please complete question 1 first."})
+    
+    # Analyze missing data patterns
+    total_cells = df.shape[0] * df.shape[1]
+    missing_cells = df.isnull().sum().sum()
+    
+    # Count different types of missing values
+    empty_strings = 0
+    whitespace_only = 0
+    null_values = missing_cells  # pandas null values
+    
+    # Check for empty strings and whitespace-only strings
+    for col in df.columns:
+        if df[col].dtype == 'object':  # string columns
+            empty_strings += (df[col] == '').sum()
+            whitespace_only += df[col].astype(str).str.strip().eq('').sum()
+    
+    # Calculate percentages
+    missing_percentage = (missing_cells / total_cells * 100) if total_cells > 0 else 0
+    empty_string_percentage = (empty_strings / total_cells * 100) if total_cells > 0 else 0
+    whitespace_percentage = (whitespace_only / total_cells * 100) if total_cells > 0 else 0
+    
+    # Find columns with most missing data
+    missing_by_column = df.isnull().sum().to_dict()
+    columns_with_missing = {col: count for col, count in missing_by_column.items() if count > 0}
+    
+    # Sort columns by missing count
+    sorted_columns = sorted(columns_with_missing.items(), key=lambda x: x[1], reverse=True)
+    
+    return {
+        "success": True,
+        "total_cells": int(total_cells),
+        "missing_cells": int(missing_cells),
+        "missing_percentage": round(missing_percentage, 2),
+        "missing_patterns": {
+            "null_values": int(null_values),
+            "empty_strings": int(empty_strings),
+            "whitespace_only": int(whitespace_only)
+        },
+        "pattern_percentages": {
+            "null_percentage": round((null_values / total_cells * 100) if total_cells > 0 else 0, 2),
+            "empty_string_percentage": round(empty_string_percentage, 2),
+            "whitespace_percentage": round(whitespace_percentage, 2)
+        },
+        "columns_with_missing": dict(sorted_columns[:10]),  # Top 10 columns with missing data
+        "total_columns_with_missing": len(columns_with_missing)
     }
