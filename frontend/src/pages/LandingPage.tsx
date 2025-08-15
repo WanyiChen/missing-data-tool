@@ -24,9 +24,7 @@ function ErrorModal({
             onClose={onClose}
             contentClassName="max-w-md w-full p-8 flex flex-col items-center justify-center min-h-[300px]"
         >
-            <h2 className="text-xl font-bold mb-4 text-center">
-                Upload Error
-            </h2>
+            <h2 className="text-xl font-bold mb-4 text-center">Upload Error</h2>
             <p className="text-gray-700 mb-8 text-center">{message}</p>
             <div className="absolute bottom-6 left-0 w-full flex justify-center">
                 <button
@@ -58,9 +56,7 @@ export default function LandingPage() {
     }>({ open: false, message: "" });
     const [uploadSuccess, setUploadSuccess] = useState(false);
     const [step, setStep] = useState(0);
-    const [previewRows, setPreviewRows] = useState<any[][] | null>(null);
     const [featureNames, setFeatureNames] = useState<null | boolean>(null);
-    const [datasetRows, setDatasetRows] = useState<any[][] | null>(null);
     const [missingDataOptions, setMissingDataOptions] = useState({
         blanks: true,
         na: false,
@@ -73,6 +69,10 @@ export default function LandingPage() {
     >(null);
 
     const navigate = useNavigate();
+
+    const handleError = (message: string) => {
+        setErrorModal({ open: true, message });
+    };
 
     // Only allow file selection via button
     const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -104,52 +104,20 @@ export default function LandingPage() {
         const formData = new FormData();
         formData.append("file", file);
         try {
-            await axios.post("/api/validate-upload", formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-            });
-            // Parse file in browser for preview
-            const parseFilePreview = (file: File): Promise<any[][]> => {
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        try {
-                            const data = e.target?.result;
-                            let workbook;
-                            if (file.name.endsWith(".csv")) {
-                                workbook = XLSX.read(data, { type: "string" });
-                            } else {
-                                workbook = XLSX.read(data, { type: "array" });
-                            }
-                            const sheet =
-                                workbook.Sheets[workbook.SheetNames[0]];
-                            const rows = XLSX.utils.sheet_to_json(sheet, {
-                                header: 1,
-                                blankrows: false,
-                            }) as any[][];
-                            resolve(rows.slice(0, 12));
-                        } catch (err) {
-                            reject(err);
-                        }
-                    };
-                    if (file.name.endsWith(".csv")) {
-                        reader.readAsText(file);
-                    } else {
-                        reader.readAsArrayBuffer(file);
-                    }
-                });
-            };
-            const rows = await parseFilePreview(file);
-            setPreviewRows(rows);
-            const firstRow = rows[0];
-            const allStrings = firstRow.every(
-                (cell) => typeof cell === "string"
+            const response = await axios.post(
+                "/api/validate-upload",
+                formData,
+                {
+                    headers: { "Content-Type": "multipart/form-data" },
+                }
             );
-            if (allStrings) {
-                setFeatureNames(true);
+            if (response.data.success) {
+                setFeatureNames(response.data.has_feature_names);
+                setStep(1);
             } else {
-                setFeatureNames(false);
+                setErrorModal({ open: true, message: response.data.message });
+                setSelectedFile(null);
             }
-            setStep(1);
         } catch (error: any) {
             let message = "An unknown error occurred.";
             if (
@@ -166,90 +134,52 @@ export default function LandingPage() {
         }
     };
 
-    if (step === 1 && previewRows) {
+    if (step === 1) {
         const handleFirstQuestionNext = () => {
-            if (!previewRows) return;
-            let processedRows: any[][];
-            if (featureNames === false) {
-                // Generate generic feature names
-                const numCols = Math.max(...previewRows.map((r) => r.length));
-                const header = Array.from(
-                    { length: numCols },
-                    (_, i) => `Feature ${i + 1}`
-                );
-                processedRows = [header, ...previewRows];
-            } else {
-                processedRows = [...previewRows];
-            }
-            setDatasetRows(processedRows);
             setStep(2);
         };
 
         return (
             <FirstQuestion
-                previewRows={previewRows}
                 featureNames={featureNames}
                 setFeatureNames={setFeatureNames}
-                onBack={() => setStep(0)}
                 onNext={handleFirstQuestionNext}
+                onError={handleError}
             />
         );
     }
 
-    if (step === 2 && datasetRows) {
+    if (step === 2) {
         const handleSecondQuestionBack = () => setStep(1);
         const handleSecondQuestionNext = () => setStep(3);
         return (
             <SecondQuestion
-                previewRows={datasetRows}
                 missingDataOptions={missingDataOptions}
                 setMissingDataOptions={setMissingDataOptions}
+                featureNames={featureNames!}
                 onBack={handleSecondQuestionBack}
                 onNext={handleSecondQuestionNext}
+                onError={handleError}
             />
         );
     }
 
-    if (step === 3 && datasetRows) {
+    if (step === 3) {
         const handleThirdQuestionBack = () => setStep(2);
-        const handleThirdQuestionNext = async () => {
-            setUploading(true);
-            const formData = new FormData();
-            formData.append("featureNames", featureNames ? "true" : "false");
-            formData.append(
-                "missingDataOptions",
-                JSON.stringify(missingDataOptions)
-            );
-            formData.append("targetFeature", targetFeature || "");
-            formData.append("targetType", targetType || "");
-            try {
-                await axios.post("/api/submit-data", formData, {
-                    headers: { "Content-Type": "multipart/form-data" },
-                });
-                navigate("/dashboard");
-            } catch (error: any) {
-                let message = "Failed to submit data.";
-                if (
-                    error.response &&
-                    error.response.data &&
-                    error.response.data.message
-                ) {
-                    message = error.response.data.message;
-                }
-                setErrorModal({ open: true, message });
-            } finally {
-                setUploading(false);
-            }
+        const handleThirdQuestionNext = () => {
+            navigate("/dashboard");
         };
         return (
             <ThirdQuestion
-                previewRows={datasetRows}
                 targetFeature={targetFeature}
                 setTargetFeature={setTargetFeature}
                 targetType={targetType}
                 setTargetType={setTargetType}
+                missingDataOptions={missingDataOptions}
+                featureNames={featureNames!}
                 onBack={handleThirdQuestionBack}
                 onNext={handleThirdQuestionNext}
+                onError={handleError}
             />
         );
     }
