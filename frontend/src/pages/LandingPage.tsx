@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import FirstQuestion from "../components/questions/FirstQuestion";
 import SecondQuestion from "../components/questions/SecondQuestion";
@@ -73,6 +73,7 @@ export default function LandingPage() {
     >(null);
 
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
 
     // Only allow file selection via button
     const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -166,6 +167,36 @@ export default function LandingPage() {
         }
     };
 
+    useEffect(() => {
+        const initialStep = searchParams.get("step");
+        if (initialStep === "3") {
+            // Try to restore data from localStorage
+            const savedData = localStorage.getItem("missingDataTool_data");
+            if (savedData) {
+                try {
+                    const parsedData = JSON.parse(savedData);
+                    setPreviewRows(parsedData.previewRows);
+                    setFeatureNames(parsedData.featureNames);
+                    setDatasetRows(parsedData.datasetRows);
+                    setMissingDataOptions(parsedData.missingDataOptions);
+                    setSelectedFile(parsedData.selectedFile ? new File([], parsedData.selectedFile.name) : null);
+                    setStep(3);
+                } catch (error) {
+                    console.error("Error restoring data:", error);
+                    setErrorModal({ 
+                        open: true, 
+                        message: "Error restoring previous data. Please upload your dataset again." 
+                    });
+                }
+            } else {
+                setErrorModal({ 
+                    open: true, 
+                    message: "No dataset uploaded. Please upload a dataset first to access question 3." 
+                });
+            }
+        }
+    }, [searchParams]);
+
     if (step === 1 && previewRows) {
         const handleFirstQuestionNext = () => {
             if (!previewRows) return;
@@ -190,7 +221,6 @@ export default function LandingPage() {
                 previewRows={previewRows}
                 featureNames={featureNames}
                 setFeatureNames={setFeatureNames}
-                onBack={() => setStep(0)}
                 onNext={handleFirstQuestionNext}
             />
         );
@@ -202,6 +232,7 @@ export default function LandingPage() {
         return (
             <SecondQuestion
                 previewRows={datasetRows}
+                featureNames={featureNames}
                 missingDataOptions={missingDataOptions}
                 setMissingDataOptions={setMissingDataOptions}
                 onBack={handleSecondQuestionBack}
@@ -212,8 +243,22 @@ export default function LandingPage() {
 
     if (step === 3 && datasetRows) {
         const handleThirdQuestionBack = () => setStep(2);
-        const handleThirdQuestionNext = async () => {
+        const handleThirdQuestionNext = async (skipped: boolean = false) => {
             setUploading(true);
+            
+            // Save data to localStorage before navigating
+            const dataToSave = {
+                previewRows,
+                featureNames,
+                datasetRows,
+                missingDataOptions,
+                selectedFile: selectedFile ? { name: selectedFile.name } : null,
+                targetFeature,
+                targetType,
+                skipped
+            };
+            localStorage.setItem("missingDataTool_data", JSON.stringify(dataToSave));
+            
             const formData = new FormData();
             formData.append("featureNames", featureNames ? "true" : "false");
             formData.append(
@@ -222,6 +267,7 @@ export default function LandingPage() {
             );
             formData.append("targetFeature", targetFeature || "");
             formData.append("targetType", targetType || "");
+            formData.append("skipped", skipped.toString());
             try {
                 await axios.post("/api/submit-data", formData, {
                     headers: { "Content-Type": "multipart/form-data" },
@@ -244,6 +290,7 @@ export default function LandingPage() {
         return (
             <ThirdQuestion
                 previewRows={datasetRows}
+                featureNames={featureNames}
                 targetFeature={targetFeature}
                 setTargetFeature={setTargetFeature}
                 targetType={targetType}

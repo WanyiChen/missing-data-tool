@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
@@ -38,9 +39,11 @@ interface MissingFeaturesTableCardProps {
 const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
     onInfoClick,
 }: MissingFeaturesTableCardProps) => {
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [features, setFeatures] = useState<FeatureData[]>([]);
+    const [skipped, setSkipped] = useState(false);
     const [openDataTypeDropdown, setOpenDataTypeDropdown] = useState<
         string | null
     >(null);
@@ -136,6 +139,9 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
             try {
                 const res = await axios.get("/api/missing-features-table");
                 if (res.data.success) {
+                    // Set skipped status
+                    setSkipped(res.data.skipped || false);
+                    
                     // Initialize features with loading states
                     const featuresWithLoading = res.data.features.map((feature: FeatureData) => ({
                         ...feature,
@@ -144,10 +150,12 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                     }));
                     setFeatures(featuresWithLoading);
                     
-                    // Start loading detailed analysis for each feature
-                    featuresWithLoading.forEach((feature: FeatureData) => {
-                        loadFeatureAnalysis(feature.feature_name);
-                    });
+                    // Start loading detailed analysis for each feature (only if not skipped)
+                    if (!res.data.skipped) {
+                        featuresWithLoading.forEach((feature: FeatureData) => {
+                            loadFeatureAnalysis(feature.feature_name);
+                        });
+                    }
                 } else {
                     setError(res.data.message || "Failed to fetch data");
                 }
@@ -508,42 +516,60 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
             </div>
 
             {loading ? (
-                <div className="text-center text-gray-400 py-8">Loading...</div>
+                <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                    <span className="ml-3 text-gray-600">Loading features...</span>
+                </div>
             ) : error ? (
-                <div className="text-center text-red-500 py-8">{error}</div>
+                <div className="text-center py-8 text-red-600">{error}</div>
             ) : (
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    {skipped && (
+                        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p className="text-blue-800 text-sm">
+                                To gain insight into{" "}
+                                <span
+                                    className="cursor-pointer hover:underline font-medium"
+                                    onClick={() => {
+                                        onInfoClick?.(
+                                            "Sometimes, the fact that some cases are missing some particular features can be informative. For instance, in a hypothetical financial dataset, if people with lower credit scores are less likely to report their credit scores, then whether a person's credit score is missing is informative. Informative missingness often happens when data is Missing Not at Random (MNAR)."
+                                        );
+                                    }}
+                                >
+                                    informative missingness
+                                </span>{" "}
+                                <span
+                                    className="cursor-pointer"
+                                    onClick={() => {
+                                        onInfoClick?.(
+                                            "Sometimes, the fact that some cases are missing some particular features can be informative. For instance, in a hypothetical financial dataset, if people with lower credit scores are less likely to report their credit scores, then whether a person's credit score is missing is informative. Informative missingness often happens when data is Missing Not at Random (MNAR)."
+                                        );
+                                    }}
+                                >
+                                    ⓘ
+                                </span>,{" "}
+                                <span
+                                    className="cursor-pointer hover:underline font-medium"
+                                    onClick={() => {
+                                        navigate("/?step=3");
+                                    }}
+                                >
+                                    select your target feature
+                                </span>
+                                .
+                            </p>
+                        </div>
+                    )}
+                    <table className="w-full border-collapse border">
                         <thead>
-                            <tr className="border-b">
+                            <tr className="bg-gray-50">
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
                                     <div className="flex items-center gap-1 justify-center">
-                                        <span
-                                            className="cursor-pointer hover:underline"
-                                            onClick={() => {
-                                                onInfoClick?.(
-                                                    'Data types are auto-detected. "N" stands for numerical, and "C" stands for categorical. If the auto-detection is wrong, click on the letter to change data type.\n Numerical data are numbers representing measurable quantities, such as a person\'s age and income. Categorical data are labels describing different characteristics. Categorical data has two subcategories - nominal data and ordinal data. Nominal data have no inherent order among the categories, such as a person\'s gender and hometown. Ordinal data are labels with inherent orders, such as student grades where "A" is considered better than "B."'
-                                                );
-                                            }}
-                                        >
-                                            Data Type
-                                            <InfoOutlinedIcon
-                                                fontSize="small"
-                                                className="text-gray-400"
-                                            />
-                                        </span>
-                                        <button
-                                            onClick={(e: React.MouseEvent) => {
-                                                e.stopPropagation();
-                                                toggleDataTypeFilterDropdown(e);
-                                            }}
-                                            className={`group transition-colors duration-100 cursor-pointer p-1 rounded hover:bg-gray-200`}
-                                        >
-                                            <FilterListIcon
-                                                fontSize="small"
-                                                className="text-gray-400 group-hover:text-black transition-colors duration-200"
-                                            />
-                                        </button>
+                                        Data Type
+                                        <InfoOutlinedIcon
+                                            fontSize="small"
+                                            className="text-gray-400"
+                                        />
                                     </div>
                                 </th>
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
@@ -603,54 +629,58 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                         </button>
                                     </div>
                                 </th>
-                                <th className="text-center py-3 px-2 font-medium text-gray-700 border">
-                                    <div className="flex items-center gap-1 justify-center">
-                                        <span
-                                            className="cursor-pointer hover:underline"
-                                            onClick={() => {
-                                                onInfoClick?.(
-                                                    'Some features are strongly correlated with other features. For numerical variables, their correlations are calculated by the correlation coefficient, denoted by r. For categorical variable, their correlations are calculated by Cramer\'s V, denoted by V.\n The "most correlated with" column shows features that have the strongest correlation with the feature listed in the "feature name" column. If more than one features are strongly associated, they will be shown by clicking on the expand (▸) button.'
-                                                );
-                                            }}
-                                        >
-                                            Most Correlated With
-                                        </span>
-                                        <InfoOutlinedIcon
-                                            fontSize="small"
-                                            className="text-gray-400"
-                                        />
-                                        <button
-                                            onClick={(e: React.MouseEvent) => {
-                                                e.stopPropagation();
-                                                toggleCorrelationFilterDropdown(e);
-                                            }}
-                                            className={`group transition-colors duration-100 cursor-pointer p-1 rounded hover:bg-gray-200`}
-                                        >
-                                            <FilterListIcon
-                                                fontSize="small"
-                                                className="text-gray-400 group-hover:text-black transition-colors duration-200"
-                                            />
-                                        </button>
-                                    </div>
-                                </th>
-                                <th className="text-center py-3 px-2 font-medium text-gray-700 border">
-                                    <div className="flex items-center gap-1 justify-center">
-                                        <span
-                                            className="cursor-pointer hover:underline"
-                                            onClick={() => {
-                                                onInfoClick?.(
-                                                    "Sometimes, the fact that some cases are missing some particular features can be informative. For instance, in a hypothetical financial dataset, if people with lower credit scores are less likely to report their credit scores, then whether a person's credit score is missing is informative. Informative missingness often happens when data is Missing Not at Random (MNAR). \nIn the table, informative missingness is calculated by testing the relationships between the user-specified target feature and the missingness of all other features. If p-value > 0.05, the missingness is considered not informative. If p-value <= 0.05, data is considered informative. \nFor more details on how the p-value is calculated, please check out this paper: Van Ness, M., Bosschieter, T. M., Halpin- Gregorio, R., & Udell, M. (2023, August). The missing indicator method: From low to high dimensions. In Proceedings of the 29th ACM SIGKDD Conference on Knowledge Discovery and Data Mining (pp. 5004-5015)."
-                                                );
-                                            }}
-                                        >
-                                            Informative Missingness
-                                        </span>
-                                        <InfoOutlinedIcon
-                                            fontSize="small"
-                                            className="text-gray-400"
-                                        />
-                                    </div>
-                                </th>
+                                {!skipped && (
+                                    <>
+                                        <th className="text-center py-3 px-2 font-medium text-gray-700 border">
+                                            <div className="flex items-center gap-1 justify-center">
+                                                <span
+                                                    className="cursor-pointer hover:underline"
+                                                    onClick={() => {
+                                                        onInfoClick?.(
+                                                            'Some features are strongly correlated with other features. For numerical variables, their correlations are calculated by the correlation coefficient, denoted by r. For categorical variable, their correlations are calculated by Cramer\'s V, denoted by V.\n The "most correlated with" column shows features that have the strongest correlation with the feature listed in the "feature name" column. If more than one features are strongly associated, they will be shown by clicking on the expand (▸) button.'
+                                                        );
+                                                    }}
+                                                >
+                                                    Most Correlated With
+                                                </span>
+                                                <InfoOutlinedIcon
+                                                    fontSize="small"
+                                                    className="text-gray-400"
+                                                />
+                                                <button
+                                                    onClick={(e: React.MouseEvent) => {
+                                                        e.stopPropagation();
+                                                        toggleCorrelationFilterDropdown(e);
+                                                    }}
+                                                    className={`group transition-colors duration-100 cursor-pointer p-1 rounded hover:bg-gray-200`}
+                                                >
+                                                    <FilterListIcon
+                                                        fontSize="small"
+                                                        className="text-gray-400 group-hover:text-black transition-colors duration-200"
+                                                    />
+                                                </button>
+                                            </div>
+                                        </th>
+                                        <th className="text-center py-3 px-2 font-medium text-gray-700 border">
+                                            <div className="flex items-center gap-1 justify-center">
+                                                <span
+                                                    className="cursor-pointer hover:underline"
+                                                    onClick={() => {
+                                                        onInfoClick?.(
+                                                            "Sometimes, the fact that some cases are missing some particular features can be informative. For instance, in a hypothetical financial dataset, if people with lower credit scores are less likely to report their credit scores, then whether a person's credit score is missing is informative. Informative missingness often happens when data is Missing Not at Random (MNAR). \nIn the table, informative missingness is calculated by testing the relationships between the user-specified target feature and the missingness of all other features. If p-value > 0.05, the missingness is considered not informative. If p-value <= 0.05, data is considered informative. \nFor more details on how the p-value is calculated, please check out this paper: Van Ness, M., Bosschieter, T. M., Halpin- Gregorio, R., & Udell, M. (2023, August). The missing indicator method: From low to high dimensions. In Proceedings of the 29th ACM SIGKDD Conference on Knowledge Discovery and Data Mining (pp. 5004-5015)."
+                                                        );
+                                                    }}
+                                                >
+                                                    Informative Missingness
+                                                </span>
+                                                <InfoOutlinedIcon
+                                                    fontSize="small"
+                                                    className="text-gray-400"
+                                                />
+                                            </div>
+                                        </th>
+                                    </>
+                                )}
                             </tr>
                         </thead>
                         <tbody>
@@ -692,78 +722,82 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                     <td className="text-center py-3 px-2 border">
                                         {feature.percentage_missing.toFixed(2)}%
                                     </td>
-                                    <td className="text-center py-3 px-2 border">
-                                        {feature.isLoadingCorrelation ? (
-                                            <div className="flex items-center justify-center">
-                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                                                <span className="ml-2 text-xs text-gray-500">Loading...</span>
-                                            </div>
-                                        ) : feature.most_correlated_with ? (
-                                            <div className="flex items-center gap-1 justify-center">
-                                                <div className="flex items-center gap-1">
-                                                    <span className="text-gray-600">
-                                                        {
-                                                            feature
-                                                                .most_correlated_with
-                                                                .feature_name
-                                                        }
+                                    {!skipped && (
+                                        <>
+                                            <td className="text-center py-3 px-2 border">
+                                                {feature.isLoadingCorrelation ? (
+                                                    <div className="flex items-center justify-center">
+                                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                                                        <span className="ml-2 text-xs text-gray-500">Loading...</span>
+                                                    </div>
+                                                ) : feature.most_correlated_with ? (
+                                                    <div className="flex items-center gap-1 justify-center">
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="text-gray-600">
+                                                                {
+                                                                    feature
+                                                                        .most_correlated_with
+                                                                        .feature_name
+                                                                }
+                                                            </span>
+                                                            <span className="text-xs text-gray-500">
+                                                                (
+                                                                {
+                                                                    feature
+                                                                        .most_correlated_with
+                                                                        .correlation_type
+                                                                }{" "}
+                                                                ={" "}
+                                                                {
+                                                                    feature
+                                                                        .most_correlated_with
+                                                                        .correlation_value
+                                                                }
+                                                                )
+                                                            </span>
+                                                        </div>
+                                                        {feature.correlated_features && feature.correlated_features.length > 1 && (
+                                                            <button
+                                                                onClick={(e: React.MouseEvent) => {
+                                                                    e.stopPropagation();
+                                                                    toggleCorrelationDetailsDropdown(feature.feature_name, e);
+                                                                }}
+                                                                className="ml-1 text-gray-400 hover:text-gray-600 transition-colors duration-200 cursor-pointer"
+                                                            >
+                                                                <ArrowDropDownIcon fontSize="small" />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-400">
+                                                        --
                                                     </span>
-                                                    <span className="text-xs text-gray-500">
-                                                        (
-                                                        {
-                                                            feature
-                                                                .most_correlated_with
-                                                                .correlation_type
-                                                        }{" "}
-                                                        ={" "}
-                                                        {
-                                                            feature
-                                                                .most_correlated_with
-                                                                .correlation_value
-                                                        }
-                                                        )
-                                                    </span>
-                                                </div>
-                                                {feature.correlated_features && feature.correlated_features.length > 1 && (
-                                                    <button
-                                                        onClick={(e: React.MouseEvent) => {
-                                                            e.stopPropagation();
-                                                            toggleCorrelationDetailsDropdown(feature.feature_name, e);
-                                                        }}
-                                                        className="ml-1 text-gray-400 hover:text-gray-600 transition-colors duration-200 cursor-pointer"
-                                                    >
-                                                        <ArrowDropDownIcon fontSize="small" />
-                                                    </button>
                                                 )}
-                                            </div>
-                                        ) : (
-                                            <span className="text-gray-400">
-                                                --
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="text-center py-3 px-2 border">
-                                        {feature.isLoadingInformative ? (
-                                            <div className="flex items-center justify-center">
-                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                                                <span className="ml-2 text-xs text-gray-500">Loading...</span>
-                                            </div>
-                                        ) : (
-                                            <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300">
-                                                {feature.informative_missingness
-                                                    .is_informative
-                                                    ? "Yes"
-                                                    : "No"}
-                                                <span className="ml-1">
-                                                    (p ={" "}
-                                                    {feature.informative_missingness.p_value.toFixed(
-                                                        2
-                                                    )}
-                                                    )
-                                                </span>
-                                            </div>
-                                        )}
-                                    </td>
+                                            </td>
+                                            <td className="text-center py-3 px-2 border">
+                                                {feature.isLoadingInformative ? (
+                                                    <div className="flex items-center justify-center">
+                                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                                                        <span className="ml-2 text-xs text-gray-500">Loading...</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300">
+                                                        {feature.informative_missingness
+                                                            .is_informative
+                                                            ? "Yes"
+                                                            : "No"}
+                                                        <span className="ml-1">
+                                                            (p ={" "}
+                                                            {feature.informative_missingness.p_value.toFixed(
+                                                                2
+                                                            )}
+                                                            )
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </td>
+                                        </>
+                                    )}
                                 </tr>
                             ))}
                         </tbody>

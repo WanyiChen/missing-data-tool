@@ -9,7 +9,7 @@ interface ThirdQuestionProps {
     targetType: "numerical" | "categorical" | null;
     setTargetType: (type: "numerical" | "categorical" | null) => void;
     onBack: () => void;
-    onNext: () => void;
+    onNext: (skipped?: boolean) => void;
 }
 
 const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
@@ -223,7 +223,7 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                             onClick={() => {
                                 setTargetFeature(null);
                                 setTargetType(null);
-                                onNext();
+                                onNext(true);
                             }}
                             style={{ minWidth: 80 }}
                         >
