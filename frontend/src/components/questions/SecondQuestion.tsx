@@ -15,6 +15,7 @@ interface SecondQuestionProps {
         other: boolean;
         otherText: string;
     }) => void;
+    featureNames: boolean;
     onBack: () => void;
     onNext: () => void;
     onError: (message: string) => void;
@@ -28,6 +29,7 @@ interface DatasetPreview {
 const SecondQuestion: React.FC<SecondQuestionProps> = ({
     missingDataOptions,
     setMissingDataOptions,
+    featureNames,
     onBack,
     onNext,
     onError,
@@ -78,12 +80,11 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         try {
             const formData = new FormData();
             formData.append("missingDataOptions", JSON.stringify(opts));
+            formData.append("featureNames", featureNames ? "true" : "false"); // Pass current featureNames value
             const response = await axios.post(
                 "/api/dataset-preview-live",
                 formData,
-                {
-                    headers: { "Content-Type": "multipart/form-data" },
-                }
+                { headers: { "Content-Type": "multipart/form-data" } }
             );
             if (response.data.success) {
                 setDatasetPreview(response.data);

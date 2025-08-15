@@ -39,37 +39,38 @@ async def validate_upload(request: Request, file: UploadFile = File(...)):
     # Use pandas to check for actual data
     try:
         if ext == ".csv":
-            df = pd.read_csv(io.BytesIO(contents))
-        else:  # .xls or .xlsx
-            df = pd.read_excel(io.BytesIO(contents))
+            df_raw = pd.read_csv(io.BytesIO(contents), header=None)
+        else:
+            df_raw = pd.read_excel(io.BytesIO(contents), header=None)
     except Exception:
         return JSONResponse(status_code=400, content={"success": False, "message": "Sorry, we could not read your file. Please ensure it is a valid and uncorrupted file."})
 
-    if df.empty:
+    if df_raw.empty:
         return JSONResponse(status_code=400, content={"success": False, "message": "Sorry, your file appears to be empty. Please double check."})
 
-    # Save file content globally for later use
+    # Detect feature names: all strings in first row
+    first_row = df_raw.iloc[0].tolist()
+    all_strings = all(isinstance(cell, str) for cell in first_row)
+    has_feature_names = all_strings
+
+    # Create dataframe accordingly
+    if has_feature_names:
+        df = pd.read_csv(io.BytesIO(contents))
+        title_row = df.columns.tolist()
+        data_rows = df.head(10).values.tolist()
+    else:
+        df = df_raw.copy()
+        df.columns = [f"Feature {i+1}" for i in range(df.shape[1])]
+        title_row = df.columns.tolist()
+        data_rows = df.head(10).values.tolist()
+
+    # Save file and dataframe for later use
     request.app.state.latest_uploaded_file = contents
     request.app.state.latest_uploaded_filename = filename
+    request.app.state.df = df
+    request.app.state.feature_names = has_feature_names
 
-    return {"success": True, "message": "File is valid."}
-
-@router.get("/api/dataset-preview")
-async def get_dataset_preview(request: Request):
-    """
-    Return a preview of the current dataset (title row and first 10 rows)
-    """
-    df = getattr(request.app.state, "df", None)
-    if df is None:
-        return JSONResponse(status_code=400, content={"success": False, "message": "No data processed yet. Please complete question 1 first."})
-    
-    # Get column names as the title row
-    title_row = df.columns.tolist()
-    
-    # Get first 10 rows of data
-    data_rows = df.head(10).values.tolist()
-    
-    # Convert numpy values to native Python types for JSON serialization
+    # Convert numpy values for JSON
     def convert_numpy_values(obj):
         if isinstance(obj, np.integer):
             return int(obj)
@@ -81,13 +82,69 @@ async def get_dataset_preview(request: Request):
             return None
         else:
             return obj
-    
-    # Convert all values in data rows
+
     converted_data_rows = []
     for row in data_rows:
         converted_row = [convert_numpy_values(cell) for cell in row]
         converted_data_rows.append(converted_row)
-    
+
+    return {
+        "success": True,
+        "has_feature_names": has_feature_names,
+        "title_row": title_row,
+        "data_rows": converted_data_rows
+    }
+
+@router.post("/api/update-feature-names")
+async def update_feature_names(request: Request, featureNames: str = Form(...)):
+    file = getattr(request.app.state, "latest_uploaded_file", None)
+    filename = getattr(request.app.state, "latest_uploaded_filename", None)
+    if file is None:
+        return JSONResponse(status_code=400, content={"success": False, "message": "No file uploaded yet."})
+
+    ext = os.path.splitext(filename or "")[1].lower()
+    try:
+        if ext == ".csv":
+            if featureNames == "false":
+                df = pd.read_csv(io.BytesIO(file), header=None)
+                df.columns = [f"Feature {i+1}" for i in range(len(df.columns))]
+            else:
+                df = pd.read_csv(io.BytesIO(file))
+        else:
+            if featureNames == "false":
+                df = pd.read_excel(io.BytesIO(file), header=None)
+                df.columns = [f"Feature {i+1}" for i in range(len(df.columns))]
+            else:
+                df = pd.read_excel(io.BytesIO(file))
+    except Exception:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Could not read uploaded file."})
+
+    if df.empty:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Uploaded file is empty."})
+
+    request.app.state.df = df
+    request.app.state.feature_names = featureNames == "true"
+
+    title_row = df.columns.tolist()
+    data_rows = df.head(10).values.tolist()
+
+    def convert_numpy_values(obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif pd.isna(obj):
+            return None
+        else:
+            return obj
+
+    converted_data_rows = []
+    for row in data_rows:
+        converted_row = [convert_numpy_values(cell) for cell in row]
+        converted_data_rows.append(converted_row)
+
     return {
         "success": True,
         "title_row": title_row,
@@ -281,25 +338,53 @@ async def detect_missing_data_options(request: Request):
 
 
 @router.post("/api/dataset-preview-live")
-async def dataset_preview_live(request: Request, missingDataOptions: str = Form(...)):
+async def dataset_preview_live(
+    request: Request,
+    missingDataOptions: str = Form(...),
+    featureNames: str = Form(None)
+):
     """
     Return a preview of the dataset with live missing data options applied.
+    Also allows updating feature names if featureNames is provided.
     """
     try:
         missing_data_options = json.loads(missingDataOptions)
     except Exception:
         return JSONResponse(status_code=400, content={"success": False, "message": "Invalid missingDataOptions format."})
 
+    file = getattr(request.app.state, "latest_uploaded_file", None)
+    filename = getattr(request.app.state, "latest_uploaded_filename", None)
+    ext = os.path.splitext(filename or "")[1].lower() if filename else ""
     df = getattr(request.app.state, "df", None)
-    if df is None:
+
+    # If featureNames is provided, reconstruct the DataFrame
+    if featureNames is not None and file is not None:
+        try:
+            if ext == ".csv":
+                if featureNames == "false":
+                    df = pd.read_csv(io.BytesIO(file), header=None)
+                    df.columns = [f"Feature {i+1}" for i in range(len(df.columns))]
+                else:
+                    df = pd.read_csv(io.BytesIO(file))
+            else:
+                if featureNames == "false":
+                    df = pd.read_excel(io.BytesIO(file), header=None)
+                    df.columns = [f"Feature {i+1}" for i in range(len(df.columns))]
+                else:
+                    df = pd.read_excel(io.BytesIO(file))
+        except Exception:
+            return JSONResponse(status_code=400, content={"success": False, "message": "Could not read uploaded file."})
+
+    if df is None or df.empty:
         return JSONResponse(status_code=400, content={"success": False, "message": "No data processed yet."})
 
+    # Apply missing data options
     df_preview = df.copy()
     if missing_data_options.get("na", False):
         df_preview.replace("N/A", np.nan, inplace=True)
 
     other_text = missing_data_options.get("otherText", "")
-    if other_text and missing_data_options["other"]:
+    if other_text and missing_data_options.get("other", False):
         for text in other_text.split(","):
             text = text.strip()
             if text.isnumeric():
