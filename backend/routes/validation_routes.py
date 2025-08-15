@@ -102,6 +102,10 @@ def reformatData(addFeatureNames: bool, missing_data_options: Dict, request: Req
 
     request.app.state.df = df_encoded
 
+    # Initialize feature cache after data is loaded
+    from .features_routes import initialize_feature_cache
+    initialize_feature_cache(df_encoded)
+
     return None
 
 @router.post("/api/submit-data")
