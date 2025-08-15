@@ -54,6 +54,46 @@ async def validate_upload(request: Request, file: UploadFile = File(...)):
 
     return {"success": True, "message": "File is valid."}
 
+@router.get("/api/dataset-preview")
+async def get_dataset_preview(request: Request):
+    """
+    Return a preview of the current dataset (title row and first 10 rows)
+    """
+    df = getattr(request.app.state, "df", None)
+    if df is None:
+        return JSONResponse(status_code=400, content={"success": False, "message": "No data processed yet. Please complete question 1 first."})
+    
+    # Get column names as the title row
+    title_row = df.columns.tolist()
+    
+    # Get first 10 rows of data
+    data_rows = df.head(10).values.tolist()
+    
+    # Convert numpy values to native Python types for JSON serialization
+    def convert_numpy_values(obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif pd.isna(obj):
+            return None
+        else:
+            return obj
+    
+    # Convert all values in data rows
+    converted_data_rows = []
+    for row in data_rows:
+        converted_row = [convert_numpy_values(cell) for cell in row]
+        converted_data_rows.append(converted_row)
+    
+    return {
+        "success": True,
+        "title_row": title_row,
+        "data_rows": converted_data_rows
+    }
+
 @router.post("/api/submit-feature-names")
 async def submit_feature_names(request: Request, featureNames: str = Form(...)):
     """

@@ -1,10 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 import styles from "../common/Button.module.css";
 
 interface SecondQuestionProps {
-    featureNames: boolean | null;
-    previewRows: any[][];
     missingDataOptions: {
         blanks: boolean;
         na: boolean;
@@ -22,9 +20,12 @@ interface SecondQuestionProps {
     onError: (message: string) => void;
 }
 
+interface DatasetPreview {
+    title_row: string[];
+    data_rows: any[][];
+}
+
 const SecondQuestion: React.FC<SecondQuestionProps> = ({
-    featureNames,
-    previewRows,
     missingDataOptions,
     setMissingDataOptions,
     onBack,
@@ -32,6 +33,32 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
     onError,
 }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [datasetPreview, setDatasetPreview] = useState<DatasetPreview | null>(null);
+    const [isLoadingPreview, setIsLoadingPreview] = useState(true);
+
+    // Fetch dataset preview from backend
+    useEffect(() => {
+        const fetchPreview = async () => {
+            try {
+                const response = await axios.get("/api/dataset-preview");
+                if (response.data.success) {
+                    setDatasetPreview(response.data);
+                } else {
+                    onError(response.data.message || "Failed to load dataset preview.");
+                }
+            } catch (error: any) {
+                let message = "Failed to load dataset preview.";
+                if (error.response?.data?.message) {
+                    message = error.response.data.message;
+                }
+                onError(message);
+            } finally {
+                setIsLoadingPreview(false);
+            }
+        };
+
+        fetchPreview();
+    }, [onError]);
 
     const handleCheckbox = (key: "blanks" | "na" | "other") => {
         setMissingDataOptions({
@@ -142,38 +169,46 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                         Dataset preview (first 10 rows)
                     </div>
                     <div className="overflow-x-auto border bg-white shadow max-w-full">
-                        <table className="min-w-[600px] border-collapse">
-                            <thead>
-                                <tr>
-                                    {previewRows[0]?.map(
-                                        (col: any, i: number) => (
+                        {isLoadingPreview ? (
+                            <div className="p-8 text-center text-gray-500">
+                                Loading dataset preview...
+                            </div>
+                        ) : datasetPreview ? (
+                            <table className="min-w-[600px] border-collapse">
+                                <thead>
+                                    <tr>
+                                        {datasetPreview.title_row.map((col: any, i: number) => (
                                             <th
                                                 key={i}
                                                 className="px-3 py-2 border font-semibold text-xs text-gray-700 whitespace-nowrap bg-gray-50"
                                             >
                                                 {String(col)}
                                             </th>
-                                        )
-                                    )}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {previewRows.slice(1, 11).map((row, i) => (
-                                    <tr key={i}>
-                                        {row.map((cell, j) => (
-                                            <td
-                                                key={j}
-                                                className="px-3 py-2 border text-xs text-gray-800 whitespace-nowrap border-b-2 border-gray-300"
-                                            >
-                                                {cell === undefined
-                                                    ? ""
-                                                    : String(cell)}
-                                            </td>
                                         ))}
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {datasetPreview.data_rows.map((row, i) => (
+                                        <tr key={i}>
+                                            {row.map((cell, j) => (
+                                                <td
+                                                    key={j}
+                                                    className="px-3 py-2 border text-xs text-gray-800 whitespace-nowrap border-b-2 border-gray-300"
+                                                >
+                                                    {cell === null || cell === undefined
+                                                        ? ""
+                                                        : String(cell)}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        ) : (
+                            <div className="p-8 text-center text-gray-500">
+                                Failed to load dataset preview
+                            </div>
+                        )}
                     </div>
                 </div>
                 <div className="flex justify-between mt-8">
