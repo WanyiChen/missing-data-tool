@@ -29,7 +29,12 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
     const [search, setSearch] = useState("");
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [datasetPreview, setDatasetPreview] = useState<DatasetPreview | null>(null);
+    const [datasetPreview, setDatasetPreview] = useState<DatasetPreview | null>(
+        null
+    );
+    const [selectedColIndex, setSelectedColIndex] = useState<number | null>(
+        null
+    );
     const [isLoadingPreview, setIsLoadingPreview] = useState(true);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -41,7 +46,10 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                 if (response.data.success) {
                     setDatasetPreview(response.data);
                 } else {
-                    onError(response.data.message || "Failed to load dataset preview.");
+                    onError(
+                        response.data.message ||
+                            "Failed to load dataset preview."
+                    );
                 }
             } catch (error: any) {
                 let message = "Failed to load dataset preview.";
@@ -85,11 +93,13 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
 
     const handleFeatureSelect = (name: string) => {
         setTargetFeature(name);
+        setSelectedColIndex(columnNames.indexOf(name));
         setDropdownOpen(false);
         setSearch("");
         if (targetType === null && datasetPreview) {
-            const colIdx = columnNames.indexOf(name);
-            const colValues = datasetPreview.data_rows.map((row) => row[colIdx]);
+            const colValues = datasetPreview.data_rows.map(
+                (row) => row[selectedColIndex !== null ? selectedColIndex : 0]
+            );
             const isCategorical = colValues.some(
                 (val) =>
                     typeof val === "string" &&
@@ -117,21 +127,28 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
 
     const handleNext = async () => {
         if (!canProceed) return;
-        
+
         setIsSubmitting(true);
         try {
             const formData = new FormData();
             formData.append("targetFeature", targetFeature);
             formData.append("targetType", targetType);
-            
-            const response = await axios.post("/api/submit-target-feature", formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-            });
-            
+
+            const response = await axios.post(
+                "/api/submit-target-feature",
+                formData,
+                {
+                    headers: { "Content-Type": "multipart/form-data" },
+                }
+            );
+
             if (response.data.success) {
                 onNext();
             } else {
-                onError(response.data.message || "Failed to save target feature configuration.");
+                onError(
+                    response.data.message ||
+                        "Failed to save target feature configuration."
+                );
             }
         } catch (error: any) {
             let message = "Failed to save target feature configuration.";
@@ -150,17 +167,24 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
             const formData = new FormData();
             formData.append("targetFeature", "");
             formData.append("targetType", "");
-            
-            const response = await axios.post("/api/submit-target-feature", formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-            });
-            
+
+            const response = await axios.post(
+                "/api/submit-target-feature",
+                formData,
+                {
+                    headers: { "Content-Type": "multipart/form-data" },
+                }
+            );
+
             if (response.data.success) {
                 setTargetFeature(null);
                 setTargetType(null);
                 onNext();
             } else {
-                onError(response.data.message || "Failed to skip target feature configuration.");
+                onError(
+                    response.data.message ||
+                        "Failed to skip target feature configuration."
+                );
             }
         } catch (error: any) {
             let message = "Failed to skip target feature configuration.";
@@ -275,14 +299,22 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                             <table className="min-w-[600px] border-collapse">
                                 <thead>
                                     <tr>
-                                        {datasetPreview.title_row.map((col, i) => (
-                                            <th
-                                                key={i}
-                                                className="px-3 py-2 border font-semibold text-xs text-gray-700 whitespace-nowrap bg-gray-50"
-                                            >
-                                                {col}
-                                            </th>
-                                        ))}
+                                        {datasetPreview.title_row.map(
+                                            (col, i) => (
+                                                <th
+                                                    key={i}
+                                                    className={`px-3 py-2 border font-semibold text-xs text-gray-700 whitespace-nowrap bg-gray-50
+                                                        ${
+                                                            i ===
+                                                            selectedColIndex
+                                                                ? "italic font-medium"
+                                                                : ""
+                                                        }`}
+                                                >
+                                                    {col}
+                                                </th>
+                                            )
+                                        )}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -291,9 +323,20 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                                             {row.map((cell, j) => (
                                                 <td
                                                     key={j}
-                                                    className="px-3 py-2 border text-xs text-gray-800 whitespace-nowrap border-b-2 border-gray-300"
+                                                    className={`px-3 py-2 border text-xs text-gray-800 whitespace-nowrap border-b-2 border-gray-300
+                                                        ${
+                                                            cell === null ||
+                                                            cell === undefined
+                                                                ? "bg-red-100 border-red-200 text-red-600 font-semibold"
+                                                                : ""
+                                                        } ${
+                                                        j === selectedColIndex
+                                                            ? "italic font-medium"
+                                                            : ""
+                                                    }`}
                                                 >
-                                                    {cell === null || cell === undefined
+                                                    {cell === null ||
+                                                    cell === undefined
                                                         ? ""
                                                         : String(cell)}
                                                 </td>
@@ -308,6 +351,10 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                             </div>
                         )}
                     </div>
+                </div>
+                <div className="text-xs text-red-500">
+                    Missing data is shown by red boxes, target feature is
+                    italicized.
                 </div>
                 <div className="flex justify-between mt-8">
                     <button
