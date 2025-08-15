@@ -37,15 +37,44 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         null
     );
     const [isLoadingPreview, setIsLoadingPreview] = useState(true);
+    const [isInitialPreviewLoad, setIsInitialPreviewLoad] = useState(true);
+
+    useEffect(() => {
+        axios.get("/api/detect-missing-data-options").then((res) => {
+            if (res.data.success && res.data.suggestions) {
+                setMissingDataOptions({
+                    ...missingDataOptions,
+                    blanks: res.data.suggestions.blanks,
+                    na: res.data.suggestions.na,
+                });
+            }
+        });
+    }, []);
 
     // Fetch dataset preview from backend
     useEffect(() => {
+        setIsInitialPreviewLoad(true);
         setIsLoadingPreview(true);
-        fetchLivePreview(missingDataOptions);
+        fetchLivePreview(missingDataOptions, true);
         // eslint-disable-next-line
-    }, [missingDataOptions.blanks, missingDataOptions.na]);
+    }, []);
 
-    const fetchLivePreview = async (opts: typeof missingDataOptions) => {
+    useEffect(() => {
+        if (!isInitialPreviewLoad) {
+            fetchLivePreview(missingDataOptions, false);
+        }
+    }, [
+        missingDataOptions.blanks,
+        missingDataOptions.na,
+        missingDataOptions.other,
+        missingDataOptions.otherText,
+    ]);
+
+    const fetchLivePreview = async (
+        opts: typeof missingDataOptions,
+        showLoading: boolean
+    ) => {
+        if (showLoading) setIsLoadingPreview(true);
         try {
             const formData = new FormData();
             formData.append("missingDataOptions", JSON.stringify(opts));
@@ -70,7 +99,8 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
             }
             onError(message);
         } finally {
-            setIsLoadingPreview(false);
+            if (showLoading) setIsLoadingPreview(false);
+            setIsInitialPreviewLoad(false);
         }
     };
 
@@ -78,22 +108,46 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         const newOptions = {
             ...missingDataOptions,
             [key]: !missingDataOptions[key],
-            ...(key === "other" && missingDataOptions.other
+            ...(key === "other" && !missingDataOptions.other
                 ? { otherText: "" }
                 : {}),
         };
         setMissingDataOptions(newOptions);
-        if (key === "blanks" || key === "na") {
+
+        if (key === "blanks" || key === "na" || key === "other") {
             setIsLoadingPreview(true);
-            fetchLivePreview(newOptions);
+            fetchLivePreview(newOptions, false);
         }
     };
 
     const handleOtherText = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
         setMissingDataOptions({
             ...missingDataOptions,
-            otherText: e.target.value,
+            otherText: value,
         });
+
+        // If comma is typed, update preview
+        if (missingDataOptions.other && value.includes(",")) {
+            setIsLoadingPreview(true);
+            fetchLivePreview(
+                {
+                    ...missingDataOptions,
+                    otherText: value,
+                },
+                false
+            );
+        }
+    };
+
+    const handleOtherTextBlur = () => {
+        if (
+            missingDataOptions.other &&
+            missingDataOptions.otherText.trim() !== ""
+        ) {
+            setIsLoadingPreview(true);
+            fetchLivePreview(missingDataOptions, false);
+        }
     };
 
     const canProceed =
@@ -185,6 +239,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                                 placeholder="Please Indicate"
                                 value={missingDataOptions.otherText}
                                 onChange={handleOtherText}
+                                onBlur={handleOtherTextBlur}
                                 disabled={!missingDataOptions.other}
                             />
                         </label>
@@ -198,7 +253,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                         Dataset preview (first 10 rows)
                     </div>
                     <div className="overflow-x-auto border bg-white shadow max-w-full">
-                        {isLoadingPreview ? (
+                        {isLoadingPreview && isInitialPreviewLoad ? (
                             <div className="p-8 text-center text-gray-500">
                                 Loading dataset preview...
                             </div>
@@ -248,8 +303,8 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                         )}
                     </div>
                 </div>
-                <div className="text-xs text-red-500 mt-2">
-                    Missing data is highlighted with red boxes.
+                <div className="text-xs text-red-500">
+                    Missing data is shown by red boxes.
                 </div>
                 <div className="flex justify-between mt-8">
                     <button
