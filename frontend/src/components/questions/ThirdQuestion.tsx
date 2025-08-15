@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import axios from "axios";
 import styles from "../common/Button.module.css";
 
 interface ThirdQuestionProps {
@@ -10,6 +11,7 @@ interface ThirdQuestionProps {
     setTargetType: (type: "numerical" | "categorical" | null) => void;
     onBack: () => void;
     onNext: () => void;
+    onError: (message: string) => void;
 }
 
 const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
@@ -21,9 +23,11 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
     setTargetType,
     onBack,
     onNext,
+    onError,
 }) => {
     const [search, setSearch] = useState("");
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     const columnNames: string[] =
@@ -80,6 +84,64 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
             } else {
                 setTargetType(null);
             }
+        }
+    };
+
+    const handleNext = async () => {
+        if (!canProceed) return;
+        
+        setIsSubmitting(true);
+        try {
+            const formData = new FormData();
+            formData.append("targetFeature", targetFeature);
+            formData.append("targetType", targetType);
+            
+            const response = await axios.post("/api/submit-target-feature", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+            
+            if (response.data.success) {
+                onNext();
+            } else {
+                onError(response.data.message || "Failed to save target feature configuration.");
+            }
+        } catch (error: any) {
+            let message = "Failed to save target feature configuration.";
+            if (error.response?.data?.message) {
+                message = error.response.data.message;
+            }
+            onError(message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleSkip = async () => {
+        setIsSubmitting(true);
+        try {
+            const formData = new FormData();
+            formData.append("targetFeature", "");
+            formData.append("targetType", "");
+            
+            const response = await axios.post("/api/submit-target-feature", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+            
+            if (response.data.success) {
+                setTargetFeature(null);
+                setTargetType(null);
+                onNext();
+            } else {
+                onError(response.data.message || "Failed to skip target feature configuration.");
+            }
+        } catch (error: any) {
+            let message = "Failed to skip target feature configuration.";
+            if (error.response?.data?.message) {
+                message = error.response.data.message;
+            }
+            onError(message);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -213,6 +275,7 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                     <button
                         className={`${styles.button} ${styles.secondary}`}
                         onClick={onBack}
+                        disabled={isSubmitting}
                         style={{ minWidth: 80 }}
                     >
                         &larr; Back
@@ -220,22 +283,19 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                     <div className="flex gap-4">
                         <button
                             className={`${styles.button} ${styles.secondary} ml-2`}
-                            onClick={() => {
-                                setTargetFeature(null);
-                                setTargetType(null);
-                                onNext();
-                            }}
+                            onClick={handleSkip}
+                            disabled={isSubmitting}
                             style={{ minWidth: 80 }}
                         >
-                            Skip &rarr;
+                            {isSubmitting ? "Saving..." : "Skip"}
                         </button>
                         <button
                             className={`${styles.button} ${styles.primary} ml-2`}
-                            disabled={!canProceed}
-                            onClick={onNext}
+                            disabled={!canProceed || isSubmitting}
+                            onClick={handleNext}
                             style={{ minWidth: 80 }}
                         >
-                            Next &rarr;
+                            {isSubmitting ? "Saving..." : "Next"}
                         </button>
                     </div>
                 </div>

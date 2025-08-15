@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import axios from "axios";
 import styles from "../common/Button.module.css";
 
 type FirstQuestionProps = {
@@ -6,6 +7,7 @@ type FirstQuestionProps = {
     featureNames: boolean | null;
     setFeatureNames: (val: boolean) => void;
     onNext: () => void;
+    onError: (message: string) => void;
 };
 
 const FirstQuestion: React.FC<FirstQuestionProps> = ({
@@ -13,7 +15,38 @@ const FirstQuestion: React.FC<FirstQuestionProps> = ({
     featureNames,
     setFeatureNames,
     onNext,
+    onError,
 }) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleNext = async () => {
+        if (featureNames === null) return;
+        
+        setIsSubmitting(true);
+        try {
+            const formData = new FormData();
+            formData.append("featureNames", featureNames ? "true" : "false");
+            
+            const response = await axios.post("/api/submit-feature-names", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+            
+            if (response.data.success) {
+                onNext();
+            } else {
+                onError(response.data.message || "Failed to save feature names configuration.");
+            }
+        } catch (error: any) {
+            let message = "Failed to save feature names configuration.";
+            if (error.response?.data?.message) {
+                message = error.response.data.message;
+            }
+            onError(message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-white">
             <div className="w-full max-w-4xl px-4 py-8">
@@ -112,11 +145,11 @@ const FirstQuestion: React.FC<FirstQuestionProps> = ({
                 <div className="flex justify-end">
                     <button
                         className={`${styles.button} ${styles.primary} ml-2`}
-                        disabled={featureNames === null}
-                        onClick={onNext}
+                        disabled={featureNames === null || isSubmitting}
+                        onClick={handleNext}
                         style={{ minWidth: 80 }}
                     >
-                    Next &rarr;
+                    {isSubmitting ? "Saving..." : "Next"}
                     </button>
                 </div>
             </div>
