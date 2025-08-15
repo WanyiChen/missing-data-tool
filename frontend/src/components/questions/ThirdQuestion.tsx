@@ -3,8 +3,6 @@ import axios from "axios";
 import styles from "../common/Button.module.css";
 
 interface ThirdQuestionProps {
-    featureNames: boolean | null;
-    previewRows: any[][];
     targetFeature: string | null;
     setTargetFeature: (feature: string | null) => void;
     targetType: "numerical" | "categorical" | null;
@@ -14,9 +12,12 @@ interface ThirdQuestionProps {
     onError: (message: string) => void;
 }
 
+interface DatasetPreview {
+    title_row: string[];
+    data_rows: any[][];
+}
+
 const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
-    featureNames,
-    previewRows,
     targetFeature,
     setTargetFeature,
     targetType,
@@ -28,10 +29,35 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
     const [search, setSearch] = useState("");
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [datasetPreview, setDatasetPreview] = useState<DatasetPreview | null>(null);
+    const [isLoadingPreview, setIsLoadingPreview] = useState(true);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const columnNames: string[] =
-        previewRows[0]?.map((col: any, i: number) => String(col)) || [];
+    // Fetch dataset preview from backend
+    useEffect(() => {
+        const fetchPreview = async () => {
+            try {
+                const response = await axios.get("/api/dataset-preview");
+                if (response.data.success) {
+                    setDatasetPreview(response.data);
+                } else {
+                    onError(response.data.message || "Failed to load dataset preview.");
+                }
+            } catch (error: any) {
+                let message = "Failed to load dataset preview.";
+                if (error.response?.data?.message) {
+                    message = error.response.data.message;
+                }
+                onError(message);
+            } finally {
+                setIsLoadingPreview(false);
+            }
+        };
+
+        fetchPreview();
+    }, [onError]);
+
+    const columnNames: string[] = datasetPreview?.title_row || [];
     const filteredColumns = columnNames.filter((name) =>
         name.toLowerCase().includes(search.toLowerCase())
     );
@@ -61,12 +87,14 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
         setTargetFeature(name);
         setDropdownOpen(false);
         setSearch("");
-        if (targetType === null) {
+        if (targetType === null && datasetPreview) {
             const colIdx = columnNames.indexOf(name);
-            const colValues = previewRows.slice(1).map((row) => row[colIdx]);
+            const colValues = datasetPreview.data_rows.map((row) => row[colIdx]);
             const isCategorical = colValues.some(
                 (val) =>
                     typeof val === "string" &&
+                    val !== null &&
+                    val !== undefined &&
                     val.trim() !== "" &&
                     isNaN(Number(val))
             );
@@ -239,36 +267,46 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                         Dataset preview (first 10 rows)
                     </div>
                     <div className="overflow-x-auto border bg-white shadow max-w-full">
-                        <table className="min-w-[600px] border-collapse">
-                            <thead>
-                                <tr>
-                                    {columnNames.map((col, i) => (
-                                        <th
-                                            key={i}
-                                            className="px-3 py-2 border font-semibold text-xs text-gray-700 whitespace-nowrap bg-gray-50"
-                                        >
-                                            {col}
-                                        </th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {previewRows.slice(1, 11).map((row, i) => (
-                                    <tr key={i}>
-                                        {row.map((cell, j) => (
-                                            <td
-                                                key={j}
-                                                className="px-3 py-2 border text-xs text-gray-800 whitespace-nowrap border-b-2 border-gray-300"
+                        {isLoadingPreview ? (
+                            <div className="p-8 text-center text-gray-500">
+                                Loading dataset preview...
+                            </div>
+                        ) : datasetPreview ? (
+                            <table className="min-w-[600px] border-collapse">
+                                <thead>
+                                    <tr>
+                                        {datasetPreview.title_row.map((col, i) => (
+                                            <th
+                                                key={i}
+                                                className="px-3 py-2 border font-semibold text-xs text-gray-700 whitespace-nowrap bg-gray-50"
                                             >
-                                                {cell === undefined
-                                                    ? ""
-                                                    : String(cell)}
-                                            </td>
+                                                {col}
+                                            </th>
                                         ))}
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {datasetPreview.data_rows.map((row, i) => (
+                                        <tr key={i}>
+                                            {row.map((cell, j) => (
+                                                <td
+                                                    key={j}
+                                                    className="px-3 py-2 border text-xs text-gray-800 whitespace-nowrap border-b-2 border-gray-300"
+                                                >
+                                                    {cell === null || cell === undefined
+                                                        ? ""
+                                                        : String(cell)}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        ) : (
+                            <div className="p-8 text-center text-gray-500">
+                                Failed to load dataset preview
+                            </div>
+                        )}
                     </div>
                 </div>
                 <div className="flex justify-between mt-8">

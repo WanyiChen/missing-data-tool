@@ -60,7 +60,6 @@ export default function LandingPage() {
     const [step, setStep] = useState(0);
     const [previewRows, setPreviewRows] = useState<any[][] | null>(null);
     const [featureNames, setFeatureNames] = useState<null | boolean>(null);
-    const [datasetRows, setDatasetRows] = useState<any[][] | null>(null);
     const [missingDataOptions, setMissingDataOptions] = useState({
         blanks: true,
         na: false,
@@ -172,20 +171,6 @@ export default function LandingPage() {
 
     if (step === 1 && previewRows) {
         const handleFirstQuestionNext = () => {
-            if (!previewRows) return;
-            let processedRows: any[][];
-            if (featureNames === false) {
-                // Generate generic feature names
-                const numCols = Math.max(...previewRows.map((r) => r.length));
-                const header = Array.from(
-                    { length: numCols },
-                    (_, i) => `Feature ${i + 1}`
-                );
-                processedRows = [header, ...previewRows];
-            } else {
-                processedRows = [...previewRows];
-            }
-            setDatasetRows(processedRows);
             setStep(2);
         };
 
@@ -200,13 +185,11 @@ export default function LandingPage() {
         );
     }
 
-    if (step === 2 && datasetRows) {
+    if (step === 2) {
         const handleSecondQuestionBack = () => setStep(1);
         const handleSecondQuestionNext = () => setStep(3);
         return (
             <SecondQuestion
-                featureNames={featureNames}
-                previewRows={datasetRows}
                 missingDataOptions={missingDataOptions}
                 setMissingDataOptions={setMissingDataOptions}
                 onBack={handleSecondQuestionBack}
@@ -216,15 +199,13 @@ export default function LandingPage() {
         );
     }
 
-    if (step === 3 && datasetRows) {
+    if (step === 3) {
         const handleThirdQuestionBack = () => setStep(2);
         const handleThirdQuestionNext = () => {
             navigate("/dashboard");
         };
         return (
             <ThirdQuestion
-                featureNames={featureNames}
-                previewRows={datasetRows}
                 targetFeature={targetFeature}
                 setTargetFeature={setTargetFeature}
                 targetType={targetType}
