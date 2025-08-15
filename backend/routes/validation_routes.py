@@ -341,7 +341,7 @@ async def detect_missing_data_options(request: Request):
 async def dataset_preview_live(
     request: Request,
     missingDataOptions: str = Form(...),
-    featureNames: str = Form(None)
+    featureNames: str = Form(...)
 ):
     """
     Return a preview of the dataset with live missing data options applied.
@@ -353,9 +353,29 @@ async def dataset_preview_live(
         return JSONResponse(status_code=400, content={"success": False, "message": "Invalid missingDataOptions format."})
 
     # Get uploaded dataframe
-    df = getattr(request.app.state, "df", None)
-    if df is None:
-        return JSONResponse(status_code=400, content={"success": False, "message": "No data processed yet. Please complete question 1 first."})
+    # Process the data with the feature names configuration
+    file = getattr(request.app.state, "latest_uploaded_file", None)
+    filename = getattr(request.app.state, "latest_uploaded_filename", None)
+    
+    if file is None:
+        return JSONResponse(status_code=400, content={"success": False, "message": "No file uploaded yet."})
+    
+    ext = os.path.splitext(filename or "")[1].lower()
+    try:
+        if ext == ".csv":
+            if featureNames == "false":
+                df = pd.read_csv(io.BytesIO(file), header=None)
+                df.columns = [f"Feature {i+1}" for i in range(len(df.columns))]
+            else:
+                df = pd.read_csv(io.BytesIO(file))
+        else:
+            if featureNames == "false":
+                df = pd.read_excel(io.BytesIO(file), header=None)
+                df.columns = [f"Feature {i+1}" for i in range(len(df.columns))]
+            else:
+                df = pd.read_excel(io.BytesIO(file))
+    except Exception:
+        return JSONResponse(status_code=400, content={"success": False, "message": "Could not read uploaded file."})
     
     # Apply missing data options
     df_preview = df.copy()
