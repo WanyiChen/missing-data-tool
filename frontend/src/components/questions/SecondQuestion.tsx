@@ -40,6 +40,22 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
     );
     const [isLoadingPreview, setIsLoadingPreview] = useState(true);
     const [isInitialPreviewLoad, setIsInitialPreviewLoad] = useState(true);
+    const [backendAnalysis, setBackendAnalysis] = useState<{
+        missing_cells: number;
+        missing_percentage: number;
+        missing_patterns: {
+            null_values: number;
+            empty_strings: number;
+            whitespace_only: number;
+        };
+        pattern_percentages: {
+            null_percentage: number;
+            empty_string_percentage: number;
+            whitespace_percentage: number;
+        };
+        columns_with_missing: Record<string, number>;
+    } | null>(null);
+    const [loadingAnalysis, setLoadingAnalysis] = useState(false);
 
     useEffect(() => {
         axios.get("/api/detect-missing-data-options").then((res) => {
@@ -72,6 +88,21 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         missingDataOptions.otherText,
     ]);
 
+    useEffect(() => {
+        if (datasetPreview) {
+            // Fetch detailed analysis from backend
+            setLoadingAnalysis(true);
+            fetchMissingDataAnalysis()
+                .then((analysis) => {
+                    setBackendAnalysis(analysis);
+                    setLoadingAnalysis(false);
+                })
+                .catch(() => {
+                    setLoadingAnalysis(false);
+                });
+        }
+    }, [datasetPreview]);
+
     const fetchLivePreview = async (
         opts: typeof missingDataOptions,
         showLoading: boolean
@@ -103,6 +134,36 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
             if (showLoading) setIsLoadingPreview(false);
             setIsInitialPreviewLoad(false);
         }
+    };
+
+    // Function to fetch detailed missing data analysis from backend
+    const fetchMissingDataAnalysis = async (): Promise<{
+        missing_cells: number;
+        missing_percentage: number;
+        missing_patterns: {
+            null_values: number;
+            empty_strings: number;
+            whitespace_only: number;
+        };
+        pattern_percentages: {
+            null_percentage: number;
+            empty_string_percentage: number;
+            whitespace_percentage: number;
+        };
+        columns_with_missing: Record<string, number>;
+    } | null> => {
+        try {
+            const response = await fetch("/api/missing-data-analysis");
+            if (response.ok) {
+                const data = await response.json();
+                return data;
+            }
+        } catch (error) {
+            console.log(
+                "Backend analysis not available, using frontend detection only"
+            );
+        }
+        return null;
     };
 
     const handleCheckbox = (key: "blanks" | "na" | "other") => {
@@ -205,6 +266,168 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                         Just three questions to get started.
                     </span>
                 </div>
+
+                {/* Missing Data Detection Section */}
+                {backendAnalysis && backendAnalysis.missing_cells > 0 && (
+                    <div className="mb-6 mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h3 className="text-lg font-semibold text-blue-800 mb-2">
+                            Missing Data Detected
+                        </h3>
+                        <p className="text-blue-700 text-sm mb-3">
+                            We found {backendAnalysis.missing_cells} missing
+                            values in your dataset with the following patterns:
+                        </p>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                            {backendAnalysis.missing_patterns.empty_strings >
+                                0 && (
+                                <div className="flex items-center gap-2">
+                                    <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
+                                    <span className="text-blue-800">
+                                        Empty strings:{" "}
+                                        {
+                                            backendAnalysis.missing_patterns
+                                                .empty_strings
+                                        }
+                                    </span>
+                                </div>
+                            )}
+                            {backendAnalysis.missing_patterns.null_values >
+                                0 && (
+                                <div className="flex items-center gap-2">
+                                    <span className="w-3 h-3 bg-red-500 rounded-full"></span>
+                                    <span className="text-red-800">
+                                        Null values:{" "}
+                                        {
+                                            backendAnalysis.missing_patterns
+                                                .null_values
+                                        }
+                                    </span>
+                                </div>
+                            )}
+                            {backendAnalysis.missing_patterns.whitespace_only >
+                                0 && (
+                                <div className="flex items-center gap-2">
+                                    <span className="w-3 h-3 bg-green-500 rounded-full"></span>
+                                    <span className="text-green-800">
+                                        Whitespace-only:{" "}
+                                        {
+                                            backendAnalysis.missing_patterns
+                                                .whitespace_only
+                                        }
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Backend Analysis Section */}
+                        {backendAnalysis && (
+                            <div className="mt-4 pt-4 border-t border-blue-200">
+                                <h4 className="text-sm font-semibold text-blue-800 mb-2">
+                                    Detailed Analysis
+                                </h4>
+                                <div className="grid grid-cols-3 gap-4 text-xs">
+                                    <div className="bg-white p-2 rounded border">
+                                        <div className="font-semibold text-blue-800">
+                                            Total Missing
+                                        </div>
+                                        <div className="text-lg font-bold text-blue-600">
+                                            {backendAnalysis.missing_cells}
+                                        </div>
+                                        <div className="text-gray-500">
+                                            (
+                                            {backendAnalysis.missing_percentage}
+                                            %)
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border">
+                                        <div className="font-semibold text-red-800">
+                                            Null Values
+                                        </div>
+                                        <div className="text-lg font-bold text-red-600">
+                                            {
+                                                backendAnalysis.missing_patterns
+                                                    .null_values
+                                            }
+                                        </div>
+                                        <div className="text-gray-500">
+                                            (
+                                            {
+                                                backendAnalysis
+                                                    .pattern_percentages
+                                                    .null_percentage
+                                            }
+                                            %)
+                                        </div>
+                                    </div>
+                                    <div className="bg-white p-2 rounded border">
+                                        <div className="font-semibold text-green-800">
+                                            Empty Strings
+                                        </div>
+                                        <div className="text-lg font-bold text-green-600">
+                                            {
+                                                backendAnalysis.missing_patterns
+                                                    .empty_strings
+                                            }
+                                        </div>
+                                        <div className="text-gray-500">
+                                            (
+                                            {
+                                                backendAnalysis
+                                                    .pattern_percentages
+                                                    .empty_string_percentage
+                                            }
+                                            %)
+                                        </div>
+                                    </div>
+                                </div>
+                                {backendAnalysis.columns_with_missing &&
+                                    Object.keys(
+                                        backendAnalysis.columns_with_missing
+                                    ).length > 0 && (
+                                        <div className="mt-3">
+                                            <div className="text-xs font-semibold text-blue-800 mb-1">
+                                                Columns with missing data:
+                                            </div>
+                                            <div className="text-xs text-blue-700">
+                                                {Object.entries(
+                                                    backendAnalysis.columns_with_missing
+                                                )
+                                                    .slice(0, 3)
+                                                    .map(([col, count]) => (
+                                                        <span
+                                                            key={col}
+                                                            className="inline-block bg-blue-100 px-2 py-1 rounded mr-2 mb-1"
+                                                        >
+                                                            {col}: {count}
+                                                        </span>
+                                                    ))}
+                                                {Object.keys(
+                                                    backendAnalysis.columns_with_missing
+                                                ).length > 3 && (
+                                                    <span className="text-gray-500">
+                                                        +
+                                                        {Object.keys(
+                                                            backendAnalysis.columns_with_missing
+                                                        ).length - 3}{" "}
+                                                        more
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {loadingAnalysis && (
+                    <div className="mt-4 pt-4 border-t border-blue-200">
+                        <div className="text-xs text-blue-600">
+                            Loading detailed analysis...
+                        </div>
+                    </div>
+                )}
+
                 <div className="mb-6 mt-8">
                     <label className="block text-lg font-medium mb-2">
                         How is missing data represented in this dataset? You can
