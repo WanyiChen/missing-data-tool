@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import axios from "axios";
 import styles from "../common/Button.module.css";
 
 interface SecondQuestionProps {
@@ -18,6 +19,7 @@ interface SecondQuestionProps {
     }) => void;
     onBack: () => void;
     onNext: () => void;
+    onError: (message: string) => void;
 }
 
 const SecondQuestion: React.FC<SecondQuestionProps> = ({
@@ -27,7 +29,10 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
     setMissingDataOptions,
     onBack,
     onNext,
+    onError,
 }) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     const handleCheckbox = (key: "blanks" | "na" | "other") => {
         setMissingDataOptions({
             ...missingDataOptions,
@@ -50,6 +55,34 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         missingDataOptions.na ||
         (missingDataOptions.other &&
             missingDataOptions.otherText.trim() !== "");
+
+    const handleNext = async () => {
+        if (!canProceed) return;
+        
+        setIsSubmitting(true);
+        try {
+            const formData = new FormData();
+            formData.append("missingDataOptions", JSON.stringify(missingDataOptions));
+            
+            const response = await axios.post("/api/submit-missing-data-options", formData, {
+                headers: { "Content-Type": "multipart/form-data" },
+            });
+            
+            if (response.data.success) {
+                onNext();
+            } else {
+                onError(response.data.message || "Failed to save missing data options.");
+            }
+        } catch (error: any) {
+            let message = "Failed to save missing data options.";
+            if (error.response?.data?.message) {
+                message = error.response.data.message;
+            }
+            onError(message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-white">
@@ -147,17 +180,18 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                     <button
                         className={`${styles.button} ${styles.secondary}`}
                         onClick={onBack}
+                        disabled={isSubmitting}
                         style={{ minWidth: 80 }}
                     >
                         &larr; Back
                     </button>
                     <button
                         className={`${styles.button} ${styles.primary} ml-2`}
-                        disabled={!canProceed}
-                        onClick={onNext}
+                        disabled={!canProceed || isSubmitting}
+                        onClick={handleNext}
                         style={{ minWidth: 80 }}
                     >
-                        Next &rarr;
+                        {isSubmitting ? "Saving..." : "Next"}
                     </button>
                 </div>
             </div>

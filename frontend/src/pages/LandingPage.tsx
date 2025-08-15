@@ -74,6 +74,10 @@ export default function LandingPage() {
 
     const navigate = useNavigate();
 
+    const handleError = (message: string) => {
+        setErrorModal({ open: true, message });
+    };
+
     // Only allow file selection via button
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const onBrowseClick = () => {
@@ -190,8 +194,8 @@ export default function LandingPage() {
                 previewRows={previewRows}
                 featureNames={featureNames}
                 setFeatureNames={setFeatureNames}
-                onBack={() => setStep(0)}
                 onNext={handleFirstQuestionNext}
+                onError={handleError}
             />
         );
     }
@@ -201,48 +205,25 @@ export default function LandingPage() {
         const handleSecondQuestionNext = () => setStep(3);
         return (
             <SecondQuestion
+                featureNames={featureNames}
                 previewRows={datasetRows}
                 missingDataOptions={missingDataOptions}
                 setMissingDataOptions={setMissingDataOptions}
                 onBack={handleSecondQuestionBack}
                 onNext={handleSecondQuestionNext}
+                onError={handleError}
             />
         );
     }
 
     if (step === 3 && datasetRows) {
         const handleThirdQuestionBack = () => setStep(2);
-        const handleThirdQuestionNext = async () => {
-            setUploading(true);
-            const formData = new FormData();
-            formData.append("featureNames", featureNames ? "true" : "false");
-            formData.append(
-                "missingDataOptions",
-                JSON.stringify(missingDataOptions)
-            );
-            formData.append("targetFeature", targetFeature || "");
-            formData.append("targetType", targetType || "");
-            try {
-                await axios.post("/api/submit-data", formData, {
-                    headers: { "Content-Type": "multipart/form-data" },
-                });
-                navigate("/dashboard");
-            } catch (error: any) {
-                let message = "Failed to submit data.";
-                if (
-                    error.response &&
-                    error.response.data &&
-                    error.response.data.message
-                ) {
-                    message = error.response.data.message;
-                }
-                setErrorModal({ open: true, message });
-            } finally {
-                setUploading(false);
-            }
+        const handleThirdQuestionNext = () => {
+            navigate("/dashboard");
         };
         return (
             <ThirdQuestion
+                featureNames={featureNames}
                 previewRows={datasetRows}
                 targetFeature={targetFeature}
                 setTargetFeature={setTargetFeature}
@@ -250,6 +231,7 @@ export default function LandingPage() {
                 setTargetType={setTargetType}
                 onBack={handleThirdQuestionBack}
                 onNext={handleThirdQuestionNext}
+                onError={handleError}
             />
         );
     }
