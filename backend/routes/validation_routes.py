@@ -243,6 +243,43 @@ async def submit_target_feature(request: Request, targetFeature: str = Form(...)
     
     return {"success": True, "message": "Target feature configuration saved successfully."}
 
+
+@router.get("/api/detect-missing-data-options")
+async def detect_missing_data_options(request: Request):
+    """
+    Analyze the uploaded dataset and suggest which missing data options ("blanks", "na") should be pre-selected.
+    """
+    df = getattr(request.app.state, "df", None)
+    if df is None:
+        return JSONResponse(status_code=400, content={"success": False, "message": "No data processed yet."})
+
+    # Detect blanks (empty strings, whitespace, or NaN)
+    blanks_detected = False
+    na_detected = False
+
+    # Variations of N/A to check
+    na_variations = {"n/a", "na", "nan", "null", "none"}
+
+    for col in df.columns:
+        # Check for blanks (empty string or whitespace)
+        if df[col].apply(lambda x: isinstance(x, str) and (x.strip() == "" or x.isspace())).any():
+            blanks_detected = True
+        # Check for NaN (already handled by pandas)
+        if df[col].isnull().any():
+            blanks_detected = True
+        # Check for N/A variations
+        if df[col].apply(lambda x: isinstance(x, str) and x.strip().lower() in {v.lower() for v in na_variations}).any():
+            na_detected = True
+
+    return {
+        "success": True,
+        "suggestions": {
+            "blanks": blanks_detected,
+            "na": na_detected
+        }
+    }
+
+
 @router.post("/api/dataset-preview-live")
 async def dataset_preview_live(request: Request, missingDataOptions: str = Form(...)):
     """
@@ -260,6 +297,15 @@ async def dataset_preview_live(request: Request, missingDataOptions: str = Form(
     df_preview = df.copy()
     if missing_data_options.get("na", False):
         df_preview.replace("N/A", np.nan, inplace=True)
+
+    other_text = missing_data_options.get("otherText", "")
+    if other_text and missing_data_options["other"]:
+        for text in other_text.split(","):
+            text = text.strip()
+            if text.isnumeric():
+                df_preview.replace(float(text), np.nan, inplace=True)
+            else:
+                df_preview.replace(text, np.nan, inplace=True)
 
     title_row = df_preview.columns.tolist()
     data_rows = df_preview.head(10).values.tolist()
