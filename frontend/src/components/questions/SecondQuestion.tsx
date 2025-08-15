@@ -33,41 +33,60 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
     onError,
 }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [datasetPreview, setDatasetPreview] = useState<DatasetPreview | null>(null);
+    const [datasetPreview, setDatasetPreview] = useState<DatasetPreview | null>(
+        null
+    );
     const [isLoadingPreview, setIsLoadingPreview] = useState(true);
 
     // Fetch dataset preview from backend
     useEffect(() => {
-        const fetchPreview = async () => {
-            try {
-                const response = await axios.get("/api/dataset-preview");
-                if (response.data.success) {
-                    setDatasetPreview(response.data);
-                } else {
-                    onError(response.data.message || "Failed to load dataset preview.");
-                }
-            } catch (error: any) {
-                let message = "Failed to load dataset preview.";
-                if (error.response?.data?.message) {
-                    message = error.response.data.message;
-                }
-                onError(message);
-            } finally {
-                setIsLoadingPreview(false);
-            }
-        };
+        setIsLoadingPreview(true);
+        fetchLivePreview(missingDataOptions);
+        // eslint-disable-next-line
+    }, [missingDataOptions.blanks, missingDataOptions.na]);
 
-        fetchPreview();
-    }, [onError]);
+    const fetchLivePreview = async (opts: typeof missingDataOptions) => {
+        try {
+            const formData = new FormData();
+            formData.append("missingDataOptions", JSON.stringify(opts));
+            const response = await axios.post(
+                "/api/dataset-preview-live",
+                formData,
+                {
+                    headers: { "Content-Type": "multipart/form-data" },
+                }
+            );
+            if (response.data.success) {
+                setDatasetPreview(response.data);
+            } else {
+                onError(
+                    response.data.message || "Failed to load dataset preview."
+                );
+            }
+        } catch (error: any) {
+            let message = "Failed to load dataset preview.";
+            if (error.response?.data?.message) {
+                message = error.response.data.message;
+            }
+            onError(message);
+        } finally {
+            setIsLoadingPreview(false);
+        }
+    };
 
     const handleCheckbox = (key: "blanks" | "na" | "other") => {
-        setMissingDataOptions({
+        const newOptions = {
             ...missingDataOptions,
             [key]: !missingDataOptions[key],
             ...(key === "other" && missingDataOptions.other
                 ? { otherText: "" }
                 : {}),
-        });
+        };
+        setMissingDataOptions(newOptions);
+        if (key === "blanks" || key === "na") {
+            setIsLoadingPreview(true);
+            fetchLivePreview(newOptions);
+        }
     };
 
     const handleOtherText = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,20 +104,30 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
 
     const handleNext = async () => {
         if (!canProceed) return;
-        
+
         setIsSubmitting(true);
         try {
             const formData = new FormData();
-            formData.append("missingDataOptions", JSON.stringify(missingDataOptions));
-            
-            const response = await axios.post("/api/submit-missing-data-options", formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-            });
-            
+            formData.append(
+                "missingDataOptions",
+                JSON.stringify(missingDataOptions)
+            );
+
+            const response = await axios.post(
+                "/api/submit-missing-data-options",
+                formData,
+                {
+                    headers: { "Content-Type": "multipart/form-data" },
+                }
+            );
+
             if (response.data.success) {
                 onNext();
             } else {
-                onError(response.data.message || "Failed to save missing data options.");
+                onError(
+                    response.data.message ||
+                        "Failed to save missing data options."
+                );
             }
         } catch (error: any) {
             let message = "Failed to save missing data options.";
@@ -177,14 +206,16 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                             <table className="min-w-[600px] border-collapse">
                                 <thead>
                                     <tr>
-                                        {datasetPreview.title_row.map((col: any, i: number) => (
-                                            <th
-                                                key={i}
-                                                className="px-3 py-2 border font-semibold text-xs text-gray-700 whitespace-nowrap bg-gray-50"
-                                            >
-                                                {String(col)}
-                                            </th>
-                                        ))}
+                                        {datasetPreview.title_row.map(
+                                            (col: any, i: number) => (
+                                                <th
+                                                    key={i}
+                                                    className="px-3 py-2 border font-semibold text-xs text-gray-700 whitespace-nowrap bg-gray-50"
+                                                >
+                                                    {String(col)}
+                                                </th>
+                                            )
+                                        )}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -193,9 +224,15 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                                             {row.map((cell, j) => (
                                                 <td
                                                     key={j}
-                                                    className="px-3 py-2 border text-xs text-gray-800 whitespace-nowrap border-b-2 border-gray-300"
+                                                    className={`px-3 py-2 border text-xs text-gray-800 whitespace-nowrap border-b-2 border-gray-300 ${
+                                                        cell === null ||
+                                                        cell === undefined
+                                                            ? "bg-red-100 border-red-200 text-red-600 font-semibold"
+                                                            : ""
+                                                    }`}
                                                 >
-                                                    {cell === null || cell === undefined
+                                                    {cell === null ||
+                                                    cell === undefined
                                                         ? ""
                                                         : String(cell)}
                                                 </td>
@@ -210,6 +247,9 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                             </div>
                         )}
                     </div>
+                </div>
+                <div className="text-xs text-red-500 mt-2">
+                    Missing data is highlighted with red boxes.
                 </div>
                 <div className="flex justify-between mt-8">
                     <button
