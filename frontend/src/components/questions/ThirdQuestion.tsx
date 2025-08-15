@@ -7,6 +7,13 @@ interface ThirdQuestionProps {
     setTargetFeature: (feature: string | null) => void;
     targetType: "numerical" | "categorical" | null;
     setTargetType: (type: "numerical" | "categorical" | null) => void;
+    missingDataOptions: {
+        blanks: boolean;
+        na: boolean;
+        other: boolean;
+        otherText: string;
+    };
+    featureNames: boolean;
     onBack: () => void;
     onNext: () => void;
     onError: (message: string) => void;
@@ -22,6 +29,8 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
     setTargetFeature,
     targetType,
     setTargetType,
+    missingDataOptions,
+    featureNames,
     onBack,
     onNext,
     onError,
@@ -42,7 +51,20 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
     useEffect(() => {
         const fetchPreview = async () => {
             try {
-                const response = await axios.get("/api/dataset-preview");
+                const formData = new FormData();
+                formData.append(
+                    "missingDataOptions",
+                    JSON.stringify(missingDataOptions)
+                );
+                formData.append(
+                    "featureNames",
+                    featureNames ? "true" : "false"
+                );
+                const response = await axios.post(
+                    "/api/dataset-preview-live",
+                    formData,
+                    { headers: { "Content-Type": "multipart/form-data" } }
+                );
                 if (response.data.success) {
                     setDatasetPreview(response.data);
                 } else {
@@ -63,7 +85,7 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
         };
 
         fetchPreview();
-    }, [onError]);
+    }, [missingDataOptions, featureNames, onError]);
 
     const columnNames: string[] = datasetPreview?.title_row || [];
     const filteredColumns = columnNames.filter((name) =>
