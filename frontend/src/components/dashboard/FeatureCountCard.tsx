@@ -30,7 +30,7 @@ const FeatureCountCard: React.FC = () => {
     }, []);
 
     return (
-        <BaseCard title="Total Number of Features with Missing Data">
+        <BaseCard title="Total number of features with missing data">
             {loading ? (
                 <div className="text-gray-400 text-center">Loading...</div>
             ) : error ? (

@@ -1,13 +1,14 @@
+import math
+
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from fastapi import Body
 import pandas as pd
 import numpy as np
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict
 from scipy import stats
 from scipy.stats import chi2_contingency
 from scipy.stats import f_oneway
-from dataclasses import dataclass
 from datetime import datetime
 
 router = APIRouter()
@@ -214,8 +215,8 @@ def get_all_features_from_cache() -> List[Feature]:
     features.sort(key=lambda x: x.percentage_missing, reverse=True)
     return features
 
-def calculate_eta_squared(categorical_series, numerical_series):
-    """Calculate Eta-squared (η²) for nominal-by-interval association."""
+def calculate_eta(categorical_series, numerical_series):
+    """Calculate Eta (η) for nominal-by-interval association."""
     try:
         # Remove missing values
         valid_mask = ~(categorical_series.isnull() | numerical_series.isnull())
@@ -246,11 +247,13 @@ def calculate_eta_squared(categorical_series, numerical_series):
         
         # Calculate eta-squared
         eta_squared = f_stat / (f_stat + df_within)
+
+        eta = math.sqrt(eta_squared)
         
-        return eta_squared, p_value
+        return eta, p_value
         
     except Exception as e:
-        print(f"Error calculating eta-squared: {str(e)}")
+        print(f"Error calculating eta: {str(e)}")
         return None, None
 
 
@@ -259,7 +262,7 @@ def calculate_feature_correlations_with_thresholds(
     feature_name: str, 
     pearson_threshold: float = 0.7,
     cramer_v_threshold: float = 0.7,
-    eta_squared_threshold: float = 0.7
+    eta_threshold: float = 0.7
 ) -> List[Dict]:
     """Calculate correlations between a feature and other features, returning those that meet thresholds."""
     try:
@@ -296,12 +299,12 @@ def calculate_feature_correlations_with_thresholds(
                 numerical_col = df[feature_name] if df[feature_name].dtype in ['int64', 'float64'] else df[col]
                 categorical_col = df[col] if df[col].dtype not in ['int64', 'float64'] else df[feature_name]
                 
-                eta_squared, p_value = calculate_eta_squared(categorical_col, numerical_col)
-                if eta_squared is not None and not np.isnan(eta_squared) and eta_squared >= eta_squared_threshold:
+                eta, p_value = calculate_eta(categorical_col, numerical_col)
+                if eta is not None and not np.isnan(eta) and eta >= eta_threshold:
                     correlations.append({
                         "feature_name": col,
-                        "correlation_value": round(eta_squared, 3),
-                        "correlation_type": "η²",
+                        "correlation_value": round(eta, 3),
+                        "correlation_type": "η",
                         "p_value": p_value
                     })
             else:
