@@ -42,7 +42,7 @@ const MechanismCard: React.FC = () => {
     }, []);
 
     return (
-        <BaseCard title="Possible Missing Data Mechanisms">
+        <BaseCard title="Possible missing data mechanisms">
             {loading ? (
                 <div className="text-center text-gray-400">Loading...</div>
             ) : error ? (
