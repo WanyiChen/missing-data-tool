@@ -1,12 +1,11 @@
 import React from "react";
 import Dropdown from "./Dropdown";
-import DropdownItem from "./DropdownItem";
 import DropdownContent from "./DropdownContent";
 
 interface CorrelationDetails {
     feature_name: string;
     correlation_value: number;
-    correlation_type: "r" | "V" | "η²";
+    correlation_type: "r" | "V" | "η";
     p_value: number;
 }
 
@@ -25,14 +24,14 @@ const CorrelationDetailsDropdown: React.FC<CorrelationDetailsDropdownProps> = ({
     position,
     buttonPosition
 }) => {
-    const getCorrelationTypeLabel = (type: "r" | "V" | "η²") => {
+    const getCorrelationTypeLabel = (type: "r" | "V" | "η") => {
         switch (type) {
             case "r":
                 return "Pearson";
             case "V":
                 return "Cramer's V";
-            case "η²":
-                return "Eta-squared";
+            case "η":
+                return "Eta";
             default:
                 return type;
         }

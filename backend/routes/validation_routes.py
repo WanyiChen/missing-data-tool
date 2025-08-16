@@ -300,6 +300,11 @@ async def submit_target_feature(request: Request, targetFeature: str = Form(...)
     
     return {"success": True, "message": "Target feature configuration saved successfully."}
 
+    # Initialize feature cache after data is loaded
+    from .features_routes import initialize_feature_cache
+    initialize_feature_cache(df_encoded)
+
+    return None
 
 @router.get("/api/detect-missing-data-options")
 async def detect_missing_data_options(request: Request):

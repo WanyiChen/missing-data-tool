@@ -14,12 +14,12 @@ interface FeatureData {
     most_correlated_with: {
         feature_name: string;
         correlation_value: number;
-        correlation_type: "r" | "V" | "η²"; // Pearson, Cramer's V, or Eta-squared
+        correlation_type: "r" | "V" | "η"; // Pearson, Cramer's V, or Eta
     } | null;
     correlated_features?: {
         feature_name: string;
         correlation_value: number;
-        correlation_type: "r" | "V" | "η²";
+        correlation_type: "r" | "V" | "η";
         p_value: number;
     }[]; // Store all correlations that meet thresholds
     informative_missingness: {
@@ -102,7 +102,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
         noCorrelations: true,
         pearsonThreshold: 0.7,
         cramerVThreshold: 0.7,
-        etaSquaredThreshold: 0.7,
+        etaThreshold: 0.7,
     });
 
     // Correlation details dropdown states
@@ -167,7 +167,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                 loadFeatureAnalysis(feature.feature_name);
             });
         }
-    }, [correlationFilter.pearsonThreshold, correlationFilter.cramerVThreshold, correlationFilter.etaSquaredThreshold]);
+    }, [correlationFilter.pearsonThreshold, correlationFilter.cramerVThreshold, correlationFilter.etaThreshold]);
 
     // Load detailed analysis for a specific feature
     const loadFeatureAnalysis = async (featureName: string) => {
@@ -175,7 +175,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
             const params = new URLSearchParams({
                 pearson_threshold: correlationFilter.pearsonThreshold.toString(),
                 cramer_v_threshold: correlationFilter.cramerVThreshold.toString(),
-                eta_squared_threshold: correlationFilter.etaSquaredThreshold.toString(),
+                eta_squared_threshold: correlationFilter.etaThreshold.toString(),
             });
             
             const res = await axios.get(`/api/feature-details/${encodeURIComponent(featureName)}?${params}`);
@@ -371,20 +371,6 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
     const getDataTypeLabel = (type: "N" | "C") => {
         return type === "N" ? "Numerical" : "Categorical";
     };
-
-    const getCorrelationTypeLabel = (type: "r" | "V" | "η²") => {
-        switch (type) {
-            case "r":
-                return "Pearson";
-            case "V":
-                return "Cramer's V";
-            case "η²":
-                return "Eta-squared";
-            default:
-                return type;
-        }
-    };
-
     const getDataTypeDisplay = (type: "N" | "C") => {
         // Check if screen is small (you can adjust this breakpoint)
         const isSmallScreen = window.innerWidth < 768;
@@ -485,8 +471,8 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                         return Math.abs(correlation.correlation_value) >= correlationFilter.pearsonThreshold;
                     case "V":
                         return correlation.correlation_value >= correlationFilter.cramerVThreshold;
-                    case "η²":
-                        return correlation.correlation_value >= correlationFilter.etaSquaredThreshold;
+                    case "η":
+                        return correlation.correlation_value >= correlationFilter.etaThreshold;
                     default:
                         return false;
                 }
@@ -503,8 +489,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
         <div className="rounded-2xl border bg-white shadow-sm p-6 w-full">
             {/* Header Section */}
             <div className="text-lg font-semibold mb-4 flex items-center gap-2">
-                Features with Missing Data
-                <InfoOutlinedIcon fontSize="small" className="text-gray-400" />
+                Features with missing data
             </div>
 
             {loading ? (
@@ -519,7 +504,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
                                     <div className="flex items-center gap-1 justify-center">
                                         <span
-                                            className="cursor-pointer hover:underline"
+                                            className="cursor-pointer hover:underline text-blue-800"
                                             onClick={() => {
                                                 onInfoClick?.(
                                                     'Data types are auto-detected. "N" stands for numerical, and "C" stands for categorical. If the auto-detection is wrong, click on the letter to change data type.\n Numerical data are numbers representing measurable quantities, such as a person\'s age and income. Categorical data are labels describing different characteristics. Categorical data has two subcategories - nominal data and ordinal data. Nominal data have no inherent order among the categories, such as a person\'s gender and hometown. Ordinal data are labels with inherent orders, such as student grades where "A" is considered better than "B."'
@@ -529,7 +514,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                             Data Type
                                             <InfoOutlinedIcon
                                                 fontSize="small"
-                                                className="text-gray-400"
+                                                className="text-blue-800"
                                             />
                                         </span>
                                         <button
@@ -606,7 +591,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
                                     <div className="flex items-center gap-1 justify-center">
                                         <span
-                                            className="cursor-pointer hover:underline"
+                                            className="cursor-pointer hover:underline text-blue-800"
                                             onClick={() => {
                                                 onInfoClick?.(
                                                     'Some features are strongly correlated with other features. For numerical variables, their correlations are calculated by the correlation coefficient, denoted by r. For categorical variable, their correlations are calculated by Cramer\'s V, denoted by V.\n The "most correlated with" column shows features that have the strongest correlation with the feature listed in the "feature name" column. If more than one features are strongly associated, they will be shown by clicking on the expand (▸) button.'
@@ -617,7 +602,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                         </span>
                                         <InfoOutlinedIcon
                                             fontSize="small"
-                                            className="text-gray-400"
+                                            className="text-blue-800"
                                         />
                                         <button
                                             onClick={(e: React.MouseEvent) => {
@@ -636,7 +621,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
                                     <div className="flex items-center gap-1 justify-center">
                                         <span
-                                            className="cursor-pointer hover:underline"
+                                            className="cursor-pointer hover:underline text-blue-800"
                                             onClick={() => {
                                                 onInfoClick?.(
                                                     "Sometimes, the fact that some cases are missing some particular features can be informative. For instance, in a hypothetical financial dataset, if people with lower credit scores are less likely to report their credit scores, then whether a person's credit score is missing is informative. Informative missingness often happens when data is Missing Not at Random (MNAR). \nIn the table, informative missingness is calculated by testing the relationships between the user-specified target feature and the missingness of all other features. If p-value > 0.05, the missingness is considered not informative. If p-value <= 0.05, data is considered informative. \nFor more details on how the p-value is calculated, please check out this paper: Van Ness, M., Bosschieter, T. M., Halpin- Gregorio, R., & Udell, M. (2023, August). The missing indicator method: From low to high dimensions. In Proceedings of the 29th ACM SIGKDD Conference on Knowledge Discovery and Data Mining (pp. 5004-5015)."
@@ -647,7 +632,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                         </span>
                                         <InfoOutlinedIcon
                                             fontSize="small"
-                                            className="text-gray-400"
+                                            className="text-blue-800"
                                         />
                                     </div>
                                 </th>

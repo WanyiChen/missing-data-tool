@@ -30,7 +30,7 @@ const CaseCountCard: React.FC = () => {
     }, []);
 
     return (
-        <BaseCard title="Total Number of Cases with Missing Data">
+        <BaseCard title="Total number of cases with missing data">
             {loading ? (
                 <div className="text-gray-400 text-center">Loading...</div>
             ) : error ? (
