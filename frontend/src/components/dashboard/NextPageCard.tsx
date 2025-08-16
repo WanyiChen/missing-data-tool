@@ -17,7 +17,7 @@ const NextPageCard: React.FC = () => {
                     onClick={handleClick}
                     className="text-blue-600 hover:text-blue-800 font-medium text-sm cursor-pointer"
                 >
-                    What if I Delete All Pages With Missing Data?
+                    What if I delete all pages with missing data?
                     <InfoOutlinedIcon
                         fontSize="small"
                         className="ml-0.5 text-blue-600 hover:text-blue-800cursor-pointer"

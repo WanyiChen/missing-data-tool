@@ -3,14 +3,13 @@ import Dropdown from "./Dropdown";
 import DropdownItem from "./DropdownItem";
 import DropdownContent from "./DropdownContent";
 import Slider from "@mui/material/Slider";
-import { Box, Typography } from "@mui/material";
 
 export type CorrelationFilter = {
     correlations: boolean;
     noCorrelations: boolean;
     pearsonThreshold: number;
     cramerVThreshold: number;
-    etaSquaredThreshold: number;
+    etaThreshold: number;
 };
 
 interface CorrelationFilterDropdownProps {
@@ -48,7 +47,7 @@ const CorrelationFilterDropdown: React.FC<CorrelationFilterDropdownProps> = ({
         onSelect(newFilter);
     };
 
-    const handleThresholdChange = (thresholdType: 'pearsonThreshold' | 'cramerVThreshold' | 'etaSquaredThreshold', value: number) => {
+    const handleThresholdChange = (thresholdType: 'pearsonThreshold' | 'cramerVThreshold' | 'etaThreshold', value: number) => {
         const newFilter = { ...localFilter, [thresholdType]: value };
         setLocalFilter(newFilter);
         onSelect(newFilter);
@@ -185,8 +184,8 @@ const CorrelationFilterDropdown: React.FC<CorrelationFilterDropdownProps> = ({
                         <div className="flex items-center gap-2">
                             <div className="flex-1">
                                 <Slider
-                                    value={localFilter.etaSquaredThreshold}
-                                    onChange={(_, value) => handleThresholdChange('etaSquaredThreshold', value as number)}
+                                    value={localFilter.etaThreshold}
+                                    onChange={(_, value) => handleThresholdChange('etaThreshold', value as number)}
                                     min={0}
                                     max={1}
                                     step={0.05}
@@ -199,13 +198,13 @@ const CorrelationFilterDropdown: React.FC<CorrelationFilterDropdownProps> = ({
                             </div>
                             <input
                                 type="number"
-                                value={localFilter.etaSquaredThreshold}
+                                value={localFilter.etaThreshold}
                                 onChange={(e) => {
                                     const value = parseFloat(e.target.value);
                                     if (!isNaN(value) && value >= 0 && value <= 1) {
                                         // Round to nearest 0.05 step
                                         const roundedValue = Math.round(value * 20) / 20;
-                                        handleThresholdChange('etaSquaredThreshold', roundedValue);
+                                        handleThresholdChange('etaThreshold', roundedValue);
                                     }
                                 }}
                                 onBlur={(e) => {
@@ -214,7 +213,7 @@ const CorrelationFilterDropdown: React.FC<CorrelationFilterDropdownProps> = ({
                                     if (!isNaN(value)) {
                                         const clampedValue = Math.max(0, Math.min(1, value));
                                         const roundedValue = Math.round(clampedValue * 20) / 20;
-                                        handleThresholdChange('etaSquaredThreshold', roundedValue);
+                                        handleThresholdChange('etaThreshold', roundedValue);
                                     }
                                 }}
                                 min={0}

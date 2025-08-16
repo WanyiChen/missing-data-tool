@@ -3,7 +3,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { BaseCard } from "./base";
 
 const MechanismCard: React.FC = () => (
-    <BaseCard title="Possible Missing Data Mechanisms">
+    <BaseCard title="Possible missing data mechanisms">
         <div className="text-xl font-semibold mb-1 text-center flex items-center justify-center gap-1">
             MAR or MNAR
             <InfoOutlinedIcon
