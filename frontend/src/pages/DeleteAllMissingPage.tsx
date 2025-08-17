@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import styles from "../components/common/Button.module.css";
+import ChartDisplay from "../components/common/ChartDisplay";
 
 // Interfaces for analysis data
 interface DistributionData {
@@ -33,12 +34,13 @@ const DeleteAllMissingPage: React.FC = () => {
     const [selectedFeature, setSelectedFeature] = useState<string | null>(null);
     const [loading, setLoading] = useState<boolean>(true); // Start with loading true
     const [error, setError] = useState<string | null>(null);
+    const [chartLoading, setChartLoading] = useState<boolean>(false);
+    const [chartError, setChartError] = useState<string | null>(null);
 
     const handleBackToDashboard = () => {
         navigate("/dashboard");
     };
 
-    // API integration function
     const performDeleteMissingDataAnalysis = async () => {
         setLoading(true);
         setError(null);
@@ -77,7 +79,10 @@ const DeleteAllMissingPage: React.FC = () => {
 
     // Feature selection handler
     const handleFeatureClick = (featureName: string) => {
+        setChartLoading(true);
+        setChartError(null);
         setSelectedFeature(featureName);
+        setChartLoading(false);
     };
 
     // Calculate percentage for display
@@ -88,7 +93,6 @@ const DeleteAllMissingPage: React.FC = () => {
         );
     };
 
-    // Automatically start analysis when component mounts
     useEffect(() => {
         performDeleteMissingDataAnalysis();
     }, []);
@@ -220,12 +224,9 @@ const DeleteAllMissingPage: React.FC = () => {
                         </button>
                     </div>
                     {/* Right Card: Data Visualizations */}
-                    <div className="flex flex-col justify-center items-center rounded-2xl shadow-md p-8 flex-1 border border-black-200">
+                    <div className="flex flex-col rounded-2xl shadow-md p-8 flex-1 border border-black-200">
                         {selectedFeature && analysisData ? (
-                            <div className="w-full">
-                                <h2 className="text-lg font-semibold mb-4">
-                                    Feature: {selectedFeature}
-                                </h2>
+                            <div className="w-full h-full">
                                 {(() => {
                                     const feature =
                                         analysisData.affected_features.find(
@@ -235,31 +236,43 @@ const DeleteAllMissingPage: React.FC = () => {
                                         );
                                     if (feature) {
                                         return (
-                                            <div className="text-sm text-gray-700">
-                                                <p className="mb-2">
-                                                    Type: {feature.feature_type}
-                                                </p>
-                                                <p className="mb-4">
-                                                    P-value:{" "}
-                                                    {feature.p_value.toFixed(4)}
-                                                </p>
-                                                <p className="text-gray-600">
-                                                    Chart visualization will be
-                                                    implemented in the next
-                                                    task.
-                                                </p>
-                                            </div>
+                                            <ChartDisplay
+                                                featureName={
+                                                    feature.feature_name
+                                                }
+                                                featureType={
+                                                    feature.feature_type
+                                                }
+                                                pValue={feature.p_value}
+                                                distributionData={
+                                                    feature.distribution_data
+                                                }
+                                                loading={chartLoading}
+                                                error={chartError}
+                                            />
                                         );
                                     }
-                                    return null;
+                                    return (
+                                        <div className="flex items-center justify-center h-full">
+                                            <span className="text-red-500 text-lg">
+                                                Feature not found
+                                            </span>
+                                        </div>
+                                    );
                                 })()}
                             </div>
                         ) : (
-                            <span className="text-gray-400 text-lg">
-                                {analysisData
-                                    ? "Select a feature to view its distribution changes"
-                                    : "[Data visualizations will appear here]"}
-                            </span>
+                            <div className="flex items-center justify-center h-full">
+                                <span className="text-gray-400 text-lg">
+                                    {loading
+                                        ? "Loading analysis..."
+                                        : error
+                                        ? "Error loading data"
+                                        : analysisData
+                                        ? "Select a feature to view its distribution changes"
+                                        : "Data visualizations will appear here"}
+                                </span>
+                            </div>
                         )}
                     </div>
                 </div>
