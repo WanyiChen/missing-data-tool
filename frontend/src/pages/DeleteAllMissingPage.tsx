@@ -54,19 +54,77 @@ const DeleteAllMissingPage: React.FC = () => {
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
+                let errorMessage = "Failed to analyze data";
+
+                try {
+                    const errorData = await response.json();
+                    errorMessage =
+                        errorData.message || errorData.detail || errorMessage;
+                } catch (parseError) {
+                    // If we can't parse the error response, use status-based messages
+                    switch (response.status) {
+                        case 400:
+                            errorMessage =
+                                "Invalid data or no dataset available. Please upload a valid dataset first.";
+                            break;
+                        case 413:
+                            errorMessage =
+                                "Dataset is too large to process. Please try with a smaller dataset.";
+                            break;
+                        case 500:
+                            errorMessage =
+                                "Server error occurred during analysis. Please try again.";
+                            break;
+                        case 503:
+                            errorMessage =
+                                "Service temporarily unavailable. Please try again later.";
+                            break;
+                        default:
+                            errorMessage = `Analysis failed with status ${response.status}. Please try again.`;
+                    }
+                }
+
+                throw new Error(errorMessage);
+            }
+
+            const data = await response.json();
+
+            // Validate response structure
+            if (!data || typeof data !== "object") {
                 throw new Error(
-                    errorData.detail || `HTTP error! status: ${response.status}`
+                    "Invalid response format received from server."
                 );
             }
 
-            const data: AnalysisResult = await response.json();
+            if (!data.success) {
+                throw new Error(
+                    data.message || "Analysis failed on the server."
+                );
+            }
+
+            // Validate required fields
+            if (
+                typeof data.rows_deleted !== "number" ||
+                typeof data.rows_remaining !== "number" ||
+                typeof data.total_original_rows !== "number" ||
+                !Array.isArray(data.affected_features)
+            ) {
+                throw new Error(
+                    "Invalid analysis results received from server."
+                );
+            }
+
             setAnalysisData(data);
         } catch (err) {
-            const errorMessage =
-                err instanceof Error
-                    ? err.message
-                    : "An unexpected error occurred";
+            let errorMessage = "An unexpected error occurred during analysis.";
+
+            if (err instanceof TypeError && err.message.includes("fetch")) {
+                errorMessage =
+                    "Network error: Unable to connect to the server. Please check your connection and try again.";
+            } else if (err instanceof Error) {
+                errorMessage = err.message;
+            }
+
             setError(errorMessage);
             console.error(
                 "Error performing delete missing data analysis:",
@@ -79,10 +137,48 @@ const DeleteAllMissingPage: React.FC = () => {
 
     // Feature selection handler
     const handleFeatureClick = (featureName: string) => {
-        setChartLoading(true);
-        setChartError(null);
-        setSelectedFeature(featureName);
-        setChartLoading(false);
+        try {
+            setChartLoading(true);
+            setChartError(null);
+
+            // Validate that the feature exists in the analysis data
+            if (!analysisData || !analysisData.affected_features) {
+                throw new Error("Analysis data is not available");
+            }
+
+            const feature = analysisData.affected_features.find(
+                (f) => f.feature_name === featureName
+            );
+
+            if (!feature) {
+                throw new Error(
+                    `Feature "${featureName}" not found in analysis results`
+                );
+            }
+
+            // Validate feature data structure
+            if (
+                !feature.distribution_data ||
+                typeof feature.distribution_data !== "object" ||
+                !feature.distribution_data.before ||
+                !feature.distribution_data.after
+            ) {
+                throw new Error(
+                    `Invalid distribution data for feature "${featureName}"`
+                );
+            }
+
+            setSelectedFeature(featureName);
+        } catch (err) {
+            const errorMessage =
+                err instanceof Error
+                    ? err.message
+                    : "Failed to load feature data";
+            setChartError(errorMessage);
+            console.error("Error selecting feature:", err);
+        } finally {
+            setChartLoading(false);
+        }
     };
 
     // Calculate percentage for display
@@ -133,17 +229,40 @@ const DeleteAllMissingPage: React.FC = () => {
 
                             {error && (
                                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                                    <p className="text-red-700 text-sm">
-                                        {error}
-                                    </p>
-                                    <button
-                                        onClick={
-                                            performDeleteMissingDataAnalysis
-                                        }
-                                        className="mt-2 text-red-600 hover:text-red-800 text-sm underline"
-                                    >
-                                        Try again
-                                    </button>
+                                    <div className="flex items-start">
+                                        <div className="flex-shrink-0">
+                                            <svg
+                                                className="h-5 w-5 text-red-400"
+                                                viewBox="0 0 20 20"
+                                                fill="currentColor"
+                                            >
+                                                <path
+                                                    fillRule="evenodd"
+                                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                                    clipRule="evenodd"
+                                                />
+                                            </svg>
+                                        </div>
+                                        <div className="ml-3 flex-1">
+                                            <h3 className="text-sm font-medium text-red-800 mb-1">
+                                                Analysis Error
+                                            </h3>
+                                            <p className="text-red-700 text-sm">
+                                                {error}
+                                            </p>
+                                            <button
+                                                onClick={
+                                                    performDeleteMissingDataAnalysis
+                                                }
+                                                className="mt-3 bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded text-sm font-medium transition-colors"
+                                                disabled={loading}
+                                            >
+                                                {loading
+                                                    ? "Retrying..."
+                                                    : "Try Again"}
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
@@ -161,14 +280,44 @@ const DeleteAllMissingPage: React.FC = () => {
                                         subpopulation.
                                     </p>
 
-                                    {analysisData.affected_features.length >
-                                    0 ? (
+                                    {analysisData.rows_deleted === 0 ? (
+                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                                            <div className="flex items-start">
+                                                <div className="flex-shrink-0">
+                                                    <svg
+                                                        className="h-5 w-5 text-blue-400"
+                                                        viewBox="0 0 20 20"
+                                                        fill="currentColor"
+                                                    >
+                                                        <path
+                                                            fillRule="evenodd"
+                                                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                                            clipRule="evenodd"
+                                                        />
+                                                    </svg>
+                                                </div>
+                                                <div className="ml-3">
+                                                    <h3 className="text-sm font-medium text-blue-800 mb-1">
+                                                        No Missing Data Found
+                                                    </h3>
+                                                    <p className="text-blue-700 text-sm">
+                                                        Your dataset doesn't
+                                                        contain any missing
+                                                        values. No rows need to
+                                                        be deleted.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : analysisData.affected_features.length >
+                                      0 ? (
                                         <>
                                             <p className="mb-4">
                                                 The following features will have
                                                 significant changes in data
-                                                distribution. Click on each
-                                                feature to learn more.
+                                                distribution (p-value &lt;
+                                                0.05). Click on each feature to
+                                                view the distribution changes.
                                             </p>
                                             <div className="flex flex-col gap-2 mb-4">
                                                 {analysisData.affected_features.map(
@@ -182,35 +331,73 @@ const DeleteAllMissingPage: React.FC = () => {
                                                                     feature.feature_name
                                                                 )
                                                             }
-                                                            className={`text-blue-600 hover:underline text-base text-left w-fit p-0 bg-transparent border-none cursor-pointer ${
+                                                            className={`text-blue-600 hover:underline text-base text-left w-fit p-0 bg-transparent border-none cursor-pointer transition-colors ${
                                                                 selectedFeature ===
                                                                 feature.feature_name
-                                                                    ? "font-semibold"
-                                                                    : ""
+                                                                    ? "font-semibold text-blue-800"
+                                                                    : "hover:text-blue-800"
                                                             }`}
                                                         >
                                                             {
                                                                 feature.feature_name
                                                             }{" "}
-                                                            (
-                                                            {
-                                                                feature.feature_type
-                                                            }
-                                                            ) - p-value:{" "}
-                                                            {feature.p_value.toFixed(
-                                                                4
-                                                            )}
+                                                            <span className="text-gray-600">
+                                                                (
+                                                                {
+                                                                    feature.feature_type
+                                                                }
+                                                                )
+                                                            </span>
+                                                            <span className="text-sm text-gray-500 ml-2">
+                                                                p ={" "}
+                                                                {feature.p_value.toFixed(
+                                                                    4
+                                                                )}
+                                                            </span>
                                                         </button>
                                                     )
                                                 )}
                                             </div>
                                         </>
                                     ) : (
-                                        <p className="mb-4 text-green-700">
-                                            No features have significant
-                                            distribution changes after deleting
-                                            missing data.
-                                        </p>
+                                        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                                            <div className="flex items-start">
+                                                <div className="flex-shrink-0">
+                                                    <svg
+                                                        className="h-5 w-5 text-green-400"
+                                                        viewBox="0 0 20 20"
+                                                        fill="currentColor"
+                                                    >
+                                                        <path
+                                                            fillRule="evenodd"
+                                                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                                            clipRule="evenodd"
+                                                        />
+                                                    </svg>
+                                                </div>
+                                                <div className="ml-3">
+                                                    <h3 className="text-sm font-medium text-green-800 mb-1">
+                                                        No Significant
+                                                        Distribution Changes
+                                                    </h3>
+                                                    <p className="text-green-700 text-sm">
+                                                        While{" "}
+                                                        {
+                                                            analysisData.rows_deleted
+                                                        }{" "}
+                                                        rows were deleted, no
+                                                        features show
+                                                        statistically
+                                                        significant changes in
+                                                        their distributions (all
+                                                        p-values ≥ 0.05). The
+                                                        remaining data appears
+                                                        to be representative of
+                                                        the original dataset.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
                             )}
@@ -225,7 +412,37 @@ const DeleteAllMissingPage: React.FC = () => {
                     </div>
                     {/* Right Card: Data Visualizations */}
                     <div className="flex flex-col rounded-2xl shadow-md p-8 flex-1 border border-black-200">
-                        {selectedFeature && analysisData ? (
+                        {loading ? (
+                            <div className="flex flex-col items-center justify-center h-full">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-3"></div>
+                                <span className="text-gray-600 text-lg">
+                                    Loading analysis...
+                                </span>
+                            </div>
+                        ) : error ? (
+                            <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                                <svg
+                                    className="h-12 w-12 text-red-400 mb-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z"
+                                    />
+                                </svg>
+                                <span className="text-red-500 text-lg mb-2">
+                                    Unable to load visualizations
+                                </span>
+                                <span className="text-gray-500 text-sm">
+                                    Please resolve the analysis error and try
+                                    again
+                                </span>
+                            </div>
+                        ) : selectedFeature && analysisData ? (
                             <div className="w-full h-full">
                                 {(() => {
                                     const feature =
@@ -253,24 +470,77 @@ const DeleteAllMissingPage: React.FC = () => {
                                         );
                                     }
                                     return (
-                                        <div className="flex items-center justify-center h-full">
-                                            <span className="text-red-500 text-lg">
+                                        <div className="flex flex-col items-center justify-center h-full">
+                                            <svg
+                                                className="h-12 w-12 text-red-400 mb-4"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                                />
+                                            </svg>
+                                            <span className="text-red-500 text-lg mb-2">
                                                 Feature not found
+                                            </span>
+                                            <span className="text-gray-500 text-sm">
+                                                The selected feature is no
+                                                longer available
                                             </span>
                                         </div>
                                     );
                                 })()}
                             </div>
+                        ) : analysisData &&
+                          analysisData.affected_features.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                                <svg
+                                    className="h-12 w-12 text-green-400 mb-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                </svg>
+                                <span className="text-green-600 text-lg mb-2">
+                                    No Significant Changes
+                                </span>
+                                <span className="text-gray-500 text-sm">
+                                    {analysisData.rows_deleted === 0
+                                        ? "No missing data was found in your dataset"
+                                        : "All features maintained their distributions after deletion"}
+                                </span>
+                            </div>
                         ) : (
-                            <div className="flex items-center justify-center h-full">
-                                <span className="text-gray-400 text-lg">
-                                    {loading
-                                        ? "Loading analysis..."
-                                        : error
-                                        ? "Error loading data"
-                                        : analysisData
-                                        ? "Select a feature to view its distribution changes"
-                                        : "Data visualizations will appear here"}
+                            <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                                <svg
+                                    className="h-12 w-12 text-gray-400 mb-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                                    />
+                                </svg>
+                                <span className="text-gray-400 text-lg mb-2">
+                                    Select a Feature
+                                </span>
+                                <span className="text-gray-500 text-sm">
+                                    Choose a feature from the left panel to view
+                                    its distribution changes
                                 </span>
                             </div>
                         )}
