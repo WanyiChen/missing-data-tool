@@ -5,6 +5,7 @@ import pandas as pd
 import io
 import math
 from pyampute.exploration.mcar_statistical_tests import MCARTest
+from models.feature import FEATURE_CACHE, calculate_all_recommendations, group_recommendations_by_type
 
 router = APIRouter()
 
@@ -123,4 +124,72 @@ def missing_mechanism(request: Request):
     if not mechanism_data["success"]:
         return JSONResponse(status_code=200, content=mechanism_data)
     
-    return mechanism_data 
+    return mechanism_data
+
+@router.get("/api/missing-data-recommendations")
+def get_missing_data_recommendations(request: Request):
+    """
+    Get intelligent recommendations for handling missing data in features.
+    
+    Returns grouped recommendations based on established data science rules:
+    1. Informative missingness -> Missing-indicator method
+    2. Strong correlation -> Remove Features
+    3. Categorical + no correlation -> Unknown category
+    4. MAR/MNAR mechanism -> ML algorithms/imputation
+    5. MCAR mechanism -> All methods valid
+    """
+    # Check if we have data available
+    df, error = get_uploaded_dataframe(request)
+    if error:
+        return error
+    
+    # Check if feature cache is initialized
+    if not FEATURE_CACHE:
+        return JSONResponse(
+            status_code=400, 
+            content={
+                "success": False, 
+                "message": "Feature cache not initialized. Please analyze features first."
+            }
+        )
+    
+    # Get dataset missing data mechanism
+    mechanism_data = get_cached_missing_mechanism(request)
+    dataset_mechanism = None
+    if mechanism_data and mechanism_data.get("success"):
+        dataset_mechanism = mechanism_data.get("mechanism_acronym")
+    
+    try:
+        # Calculate recommendations for all features with missing data
+        recommendations = calculate_all_recommendations(dataset_mechanism)
+        
+        # Filter out features with no recommendations
+        valid_recommendations = {
+            name: rec for name, rec in recommendations.items() 
+            if rec is not None
+        }
+        
+        # If no features have missing data or recommendations
+        if not valid_recommendations:
+            return {
+                "success": True,
+                "recommendations": [],
+                "message": "No features with missing data found or no recommendations available."
+            }
+        
+        # Group features by recommendation type
+        grouped_recommendations = group_recommendations_by_type(valid_recommendations)
+        
+        return {
+            "success": True,
+            "recommendations": grouped_recommendations
+        }
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "message": f"Error calculating recommendations: {str(e)}"
+            }
+        ) 
