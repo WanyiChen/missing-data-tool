@@ -495,6 +495,23 @@ def _is_mcar_mechanism(dataset_mechanism: str) -> bool:
     return "mcar" in dataset_mechanism.lower()
 
 
+def get_cached_missing_mechanism_from_request(request) -> Optional[str]:
+    """
+    Helper function to get cached missing data mechanism from request app state.
+    Returns the mechanism acronym or None if not available.
+    """
+    try:
+        # Import here to avoid circular imports
+        from routes.dashboard_routes import get_cached_missing_mechanism
+        
+        mechanism_data = get_cached_missing_mechanism(request)
+        if mechanism_data and mechanism_data.get("success"):
+            return mechanism_data.get("mechanism_acronym")
+        return None
+    except Exception:
+        return None
+
+
 def calculate_recommendation(feature: Feature, dataset_mechanism: str = None) -> Dict:
     """
     Calculate recommendation for a feature based on the 5 rules in order of precedence.
