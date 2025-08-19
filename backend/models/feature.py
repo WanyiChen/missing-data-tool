@@ -146,6 +146,11 @@ class Feature:
         # 2. Correlations or informative missingness have been recalculated since last recommendation
         return not self._recommendation_calculated
     
+    def calculate_and_set_recommendation(self, dataset_mechanism: str = None):
+        """Calculate recommendation using the rule engine and cache the result."""
+        recommendation_result = calculate_recommendation(self, dataset_mechanism)
+        self.set_recommendation(recommendation_result)
+    
     def clear_correlations(self):
         """Clear correlations to force recalculation with new thresholds."""
         self._correlated_features = []
@@ -378,4 +383,180 @@ def calculate_informative_missingness(df: pd.DataFrame, feature_name: str) -> Di
     return {
         "is_informative": False,  # Placeholder
         "p_value": 1.0  # Placeholder
+    }
+
+
+def calculate_all_recommendations(dataset_mechanism: str = None) -> Dict[str, Dict]:
+    """
+    Calculate recommendations for all features in the cache.
+    
+    Args:
+        dataset_mechanism: Dataset missing data mechanism
+        
+    Returns:
+        Dict mapping feature names to their recommendation results
+    """
+    recommendations = {}
+    
+    for feature_name, feature in FEATURE_CACHE.items():
+        if feature.needs_recommendation_recalculation():
+            feature.calculate_and_set_recommendation(dataset_mechanism)
+        recommendations[feature_name] = feature.get_recommendation()
+    
+    return recommendations
+
+
+def group_recommendations_by_type(recommendations: Dict[str, Dict]) -> List[Dict]:
+    """
+    Group features by their recommendation type for API response.
+    
+    Args:
+        recommendations: Dict mapping feature names to recommendation results
+        
+    Returns:
+        List of dicts with recommendation_type, features, and reason
+    """
+    grouped = {}
+    
+    for feature_name, recommendation in recommendations.items():
+        if not recommendation:
+            continue
+            
+        rec_type = recommendation["recommendation_type"]
+        reason = recommendation["reason"]
+        
+        if rec_type not in grouped:
+            grouped[rec_type] = {
+                "recommendation_type": rec_type,
+                "features": [],
+                "reason": reason
+            }
+        
+        grouped[rec_type]["features"].append(feature_name)
+    
+    # Convert to list and sort by rule precedence (lower rule numbers first)
+    result = []
+    for rec_data in grouped.values():
+        result.append(rec_data)
+    
+    # Sort by the first feature's rule number (we can get this from the cache)
+    def get_rule_priority(rec_data):
+        # Get the rule number from the first feature with this recommendation
+        first_feature_name = rec_data["features"][0]
+        feature = FEATURE_CACHE.get(first_feature_name)
+        if feature and feature.recommendation:
+            return feature.recommendation.get("rule_applied", 999)
+        return 999
+    
+    result.sort(key=get_rule_priority)
+    
+    return result
+
+
+# Recommendation Rule Engine
+
+def _has_informative_missingness(feature: Feature) -> bool:
+    """Rule 1 helper: Check if feature has informative missingness."""
+    if not feature.informative_calculated:
+        return False
+    return feature.informative_missingness.get("is_informative", False)
+
+
+def _is_strongly_correlated(feature: Feature) -> bool:
+    """Rule 2 helper: Check if feature is strongly correlated with complete features."""
+    if not feature.correlations_calculated:
+        return False
+    # A feature is considered strongly correlated if it has any correlations above threshold
+    return len(feature.correlated_features) > 0
+
+
+def _is_categorical_feature(feature: Feature) -> bool:
+    """Rule 3 helper: Check if feature is categorical."""
+    return feature.data_type == "C"
+
+
+def _is_numerical_feature(feature: Feature) -> bool:
+    """Helper: Check if feature is numerical."""
+    return feature.data_type == "N"
+
+
+def _is_mar_or_mnar_mechanism(dataset_mechanism: str) -> bool:
+    """Rule 4 helper: Check if dataset mechanism is MAR or MNAR."""
+    if not dataset_mechanism:
+        return False
+    mechanism_lower = dataset_mechanism.lower()
+    return "mar" in mechanism_lower or "mnar" in mechanism_lower
+
+
+def _is_mcar_mechanism(dataset_mechanism: str) -> bool:
+    """Rule 5 helper: Check if dataset mechanism is MCAR."""
+    if not dataset_mechanism:
+        return False
+    return "mcar" in dataset_mechanism.lower()
+
+
+def calculate_recommendation(feature: Feature, dataset_mechanism: str = None) -> Dict:
+    """
+    Calculate recommendation for a feature based on the 5 rules in order of precedence.
+    
+    Rules (in order):
+    1. Informative missingness -> Missing-indicator method
+    2. Strong correlation (no informative missingness) -> Remove Features  
+    3. Categorical + no correlation + no informative missingness -> Unknown category
+    4. MAR/MNAR mechanism -> ML algorithms/imputation
+    5. MCAR mechanism -> All methods valid
+    
+    Args:
+        feature: Feature object with calculated correlations and informative missingness
+        dataset_mechanism: Dataset missing data mechanism ("MCAR", "MAR", "MNAR", etc.)
+    
+    Returns:
+        Dict with recommendation_type, reason, and rule_applied
+    """
+    
+    # Rule 1: Informative missingness (highest priority)
+    if _has_informative_missingness(feature):
+        return {
+            "recommendation_type": "Missing-indicator method",
+            "reason": "Feature has informative missingness (p-value ≤ 0.05)",
+            "rule_applied": 1
+        }
+    
+    # Rule 2: Strong correlation with complete features (no informative missingness)
+    if _is_strongly_correlated(feature):
+        return {
+            "recommendation_type": "Remove Features", 
+            "reason": "Feature is strongly correlated with complete features",
+            "rule_applied": 2
+        }
+    
+    # Rule 3: Categorical feature with non-informative missingness and no strong correlations
+    if _is_categorical_feature(feature):
+        return {
+            "recommendation_type": "Create an 'unknown' category or consider adjusting the categories",
+            "reason": "Categorical feature with non-informative missingness",
+            "rule_applied": 3
+        }
+    
+    # Rule 4: MAR/MNAR dataset mechanism
+    if _is_mar_or_mnar_mechanism(dataset_mechanism):
+        return {
+            "recommendation_type": "Machine learning algorithms that can directly handle missing data or multiple imputation",
+            "reason": f"Dataset is {dataset_mechanism} - advanced methods recommended",
+            "rule_applied": 4
+        }
+    
+    # Rule 5: MCAR dataset mechanism (default fallback)
+    if _is_mcar_mechanism(dataset_mechanism):
+        return {
+            "recommendation_type": "All methods are valid: complete case analysis, machine learning algorithms that can directly handle missing data, multiple imputation, etc.",
+            "reason": f"Dataset is {dataset_mechanism} - all methods are appropriate",
+            "rule_applied": 5
+        }
+    
+    # Fallback if no mechanism is provided or recognized
+    return {
+        "recommendation_type": "Machine learning algorithms that can directly handle missing data or multiple imputation",
+        "reason": "Dataset mechanism unknown - advanced methods recommended as safe default",
+        "rule_applied": 4  # Default to rule 4 as conservative approach
     }
