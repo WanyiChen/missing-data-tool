@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import styles from "../components/common/Button.module.css";
 import ChartDisplay from "../components/common/ChartDisplay";
+import axios from "axios";
 
 // Interfaces for analysis data
 interface DistributionData {
@@ -46,20 +47,18 @@ const DeleteAllMissingPage: React.FC = () => {
         setError(null);
 
         try {
-            const response = await fetch("/api/delete-missing-data-analysis", {
+            const response = await axios.get("/api/delete-missing-data-analysis", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
             });
 
-            if (!response.ok) {
+            if (!response.data.success) {
                 let errorMessage = "Failed to analyze data";
 
                 try {
-                    const errorData = await response.json();
-                    errorMessage =
-                        errorData.message || errorData.detail || errorMessage;
+                    errorMessage = response.data.message || "Failed to fetch data"
                 } catch (parseError) {
                     // If we can't parse the error response, use status-based messages
                     switch (response.status) {
@@ -87,18 +86,12 @@ const DeleteAllMissingPage: React.FC = () => {
                 throw new Error(errorMessage);
             }
 
-            const data = await response.json();
+            const data = response.data;
 
             // Validate response structure
             if (!data || typeof data !== "object") {
                 throw new Error(
                     "Invalid response format received from server."
-                );
-            }
-
-            if (!data.success) {
-                throw new Error(
-                    data.message || "Analysis failed on the server."
                 );
             }
 
