@@ -1,7 +1,14 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ]
+    "files": [],
+    "references": [
+        { "path": "./tsconfig.app.json" },
+        { "path": "./tsconfig.node.json" }
+    ],
+    "compilerOptions": {
+        // make aliases absolute imports relative to the project root
+        "baseUrl": "./",
+        "paths": {
+            "plotly.js-basic-dist": ["node_modules/@types/plotly.js"]
+        }
+    }
 }
