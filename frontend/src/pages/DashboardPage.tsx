@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Modal } from "../components/common/modal";
@@ -9,6 +8,7 @@ import MechanismCard from "../components/dashboard/MechanismCard";
 import CaseCountCard from "../components/dashboard/CaseCountCard";
 import FeatureCountCard from "../components/dashboard/FeatureCountCard";
 import MissingFeaturesTableCard from "../components/dashboard/MissingFeaturesTableCard";
+import RecommendationTableCard from "../components/dashboard/RecommendationTableCard";
 import NextPageCard from "../components/dashboard/NextPageCard";
 
 function ConfirmationModal({
@@ -30,9 +30,9 @@ function ConfirmationModal({
             {/* Content */}
             <div className="pr-6 h-full flex flex-col justify-between">
                 <p className="text-black text-sm leading-normal mb-4">
-                    Are you sure you want to upload a new dataset? The
-                    current analysis won't be saved. Consider downloading
-                    the report before uploading a new dataset.
+                    Are you sure you want to upload a new dataset? The current
+                    analysis won't be saved. Consider downloading the report
+                    before uploading a new dataset.
                 </p>
 
                 {/* Buttons */}
@@ -78,7 +78,10 @@ function InfoModal({
 
 const DashboardPage: React.FC = () => {
     const [showConfirmModal, setShowConfirmModal] = useState(false);
-    const [infoModal, setInfoModal] = useState<{ open: boolean; message: string }>({
+    const [infoModal, setInfoModal] = useState<{
+        open: boolean;
+        message: string;
+    }>({
         open: false,
         message: "",
     });
@@ -147,6 +150,8 @@ const DashboardPage: React.FC = () => {
                     </div>
                     {/* Missing Features Table */}
                     <MissingFeaturesTableCard onInfoClick={handleInfoClick} />
+                    {/* Recommendation Table */}
+                    <RecommendationTableCard onInfoClick={handleInfoClick} />
                     {/* Full Width Card */}
                     <NextPageCard />
                 </div>
