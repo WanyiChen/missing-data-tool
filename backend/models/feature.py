@@ -147,9 +147,40 @@ class Feature:
         return not self._recommendation_calculated
     
     def calculate_and_set_recommendation(self, dataset_mechanism: str = None):
-        """Calculate recommendation using the rule engine and cache the result."""
-        recommendation_result = calculate_recommendation(self, dataset_mechanism)
-        self.set_recommendation(recommendation_result)
+        """Calculate recommendation using the rule engine and cache the result with error handling."""
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        
+        try:
+            logger.debug(f"Calculating recommendation for feature: {self.name}")
+            recommendation_result = calculate_recommendation(self, dataset_mechanism)
+            
+            if recommendation_result is not None:
+                self.set_recommendation(recommendation_result)
+                logger.debug(f"Successfully set recommendation for {self.name}: {recommendation_result.get('recommendation_type', 'Unknown')}")
+            else:
+                logger.warning(f"No recommendation calculated for feature: {self.name}")
+                # Set a fallback recommendation to indicate calculation failed
+                fallback_recommendation = {
+                    "recommendation_type": "Machine learning algorithms that can directly handle missing data or multiple imputation",
+                    "reason": f"Unable to determine specific recommendation for feature '{self.name}'. Using conservative fallback approach.",
+                    "rule_applied": 4,
+                    "calculation_failed": True
+                }
+                self.set_recommendation(fallback_recommendation)
+                
+        except Exception as e:
+            logger.error(f"Error calculating recommendation for feature {self.name}: {str(e)}")
+            # Set an error recommendation
+            error_recommendation = {
+                "recommendation_type": "Machine learning algorithms that can directly handle missing data or multiple imputation",
+                "reason": f"Error occurred while analyzing feature '{self.name}'. Using conservative fallback approach.",
+                "rule_applied": 4,
+                "calculation_error": True,
+                "error_message": str(e)
+            }
+            self.set_recommendation(error_recommendation)
     
     def clear_correlations(self):
         """Clear correlations to force recalculation with new thresholds."""
@@ -232,28 +263,95 @@ def get_all_features_from_cache() -> List[Feature]:
 
 
 def initialize_feature_cache(df: pd.DataFrame):
-    """Initialize the feature cache with all features that have missing data."""
-    global FEATURE_CACHE
-    FEATURE_CACHE.clear()
+    """Initialize the feature cache with all features that have missing data. Includes comprehensive error handling."""
+    import logging
     
-    for column in df.columns:
-        number_missing = df[column].isnull().sum()
-        if number_missing == 0:
-            continue
-            
-        # Auto-detect data type based on pandas dtype
-        data_type = "N" if df[column].dtype in ['int64', 'float64'] else "C"
-        percentage_missing = round((number_missing / len(df)) * 100, 2)
+    logger = logging.getLogger(__name__)
+    global FEATURE_CACHE
+    
+    try:
+        logger.info("Initializing feature cache")
+        FEATURE_CACHE.clear()
         
-        feature = Feature(
-            name=column,
-            data_type=data_type,
-            number_missing=int(number_missing),
-            percentage_missing=percentage_missing,
-            original_dtype=str(df[column].dtype)
-        )
+        if df is None or df.empty:
+            logger.error("Cannot initialize feature cache: dataframe is None or empty")
+            raise ValueError("Dataframe is None or empty")
         
-        FEATURE_CACHE[column] = feature
+        features_added = 0
+        features_skipped = 0
+        
+        for column in df.columns:
+            try:
+                # Validate column name
+                if not column or pd.isna(column):
+                    logger.warning(f"Skipping invalid column name: {column}")
+                    features_skipped += 1
+                    continue
+                
+                # Calculate missing data statistics
+                try:
+                    number_missing = df[column].isnull().sum()
+                    if number_missing == 0:
+                        continue  # Skip features with no missing data
+                    
+                    total_rows = len(df)
+                    if total_rows == 0:
+                        logger.warning(f"Skipping column {column}: dataframe has no rows")
+                        features_skipped += 1
+                        continue
+                        
+                    percentage_missing = round((number_missing / total_rows) * 100, 2)
+                    
+                except Exception as stats_error:
+                    logger.error(f"Error calculating missing data statistics for column {column}: {str(stats_error)}")
+                    features_skipped += 1
+                    continue
+                
+                # Auto-detect data type based on pandas dtype
+                try:
+                    original_dtype = str(df[column].dtype)
+                    data_type = "N" if df[column].dtype in ['int64', 'float64', 'int32', 'float32'] else "C"
+                except Exception as dtype_error:
+                    logger.warning(f"Error detecting data type for column {column}: {str(dtype_error)}. Defaulting to categorical.")
+                    original_dtype = "unknown"
+                    data_type = "C"
+                
+                # Create feature object
+                try:
+                    feature = Feature(
+                        name=column,
+                        data_type=data_type,
+                        number_missing=int(number_missing),
+                        percentage_missing=percentage_missing,
+                        original_dtype=original_dtype
+                    )
+                    
+                    FEATURE_CACHE[column] = feature
+                    features_added += 1
+                    logger.debug(f"Added feature to cache: {column} ({data_type}, {percentage_missing}% missing)")
+                    
+                except Exception as feature_error:
+                    logger.error(f"Error creating Feature object for column {column}: {str(feature_error)}")
+                    features_skipped += 1
+                    continue
+                    
+            except Exception as column_error:
+                logger.error(f"Error processing column {column}: {str(column_error)}")
+                features_skipped += 1
+                continue
+        
+        logger.info(f"Feature cache initialization complete: {features_added} features added, {features_skipped} skipped")
+        
+        if features_added == 0:
+            if features_skipped > 0:
+                raise ValueError(f"No features could be processed successfully. {features_skipped} features had errors.")
+            else:
+                logger.info("No features with missing data found in dataset")
+        
+    except Exception as e:
+        logger.error(f"Critical error initializing feature cache: {str(e)}")
+        FEATURE_CACHE.clear()  # Ensure cache is clean on failure
+        raise
 
 
 def calculate_eta(categorical_series, numerical_series):
@@ -388,33 +486,61 @@ def calculate_informative_missingness(df: pd.DataFrame, feature_name: str) -> Di
 
 def calculate_all_recommendations(dataset_mechanism: str = None) -> Dict[str, Dict]:
     """
-    Calculate recommendations for all features in the cache.
+    Calculate recommendations for all features in the cache with comprehensive error handling.
     
     Args:
         dataset_mechanism: Dataset missing data mechanism
         
     Returns:
-        Dict mapping feature names to their recommendation results
+        Dict mapping feature names to their recommendation results (None for failed calculations)
     """
+    import logging
+    
+    logger = logging.getLogger(__name__)
     recommendations = {}
     
+    if not FEATURE_CACHE:
+        logger.error("Feature cache is empty - cannot calculate recommendations")
+        return {}
+    
+    successful_calculations = 0
+    failed_calculations = 0
+    
     for feature_name, feature in FEATURE_CACHE.items():
-        if feature.needs_recommendation_recalculation():
-            feature.calculate_and_set_recommendation(dataset_mechanism)
-        recommendations[feature_name] = feature.get_recommendation()
+        try:
+            if feature.needs_recommendation_recalculation():
+                logger.debug(f"Calculating recommendation for feature: {feature_name}")
+                feature.calculate_and_set_recommendation(dataset_mechanism)
+            
+            recommendation = feature.get_recommendation()
+            recommendations[feature_name] = recommendation
+            
+            if recommendation is not None:
+                successful_calculations += 1
+                logger.debug(f"Successfully calculated recommendation for {feature_name}: {recommendation.get('recommendation_type', 'Unknown')}")
+            else:
+                failed_calculations += 1
+                logger.warning(f"No recommendation generated for feature: {feature_name}")
+                
+        except Exception as e:
+            failed_calculations += 1
+            logger.error(f"Error calculating recommendation for feature {feature_name}: {str(e)}")
+            recommendations[feature_name] = None
+    
+    logger.info(f"Recommendation calculation summary: {successful_calculations} successful, {failed_calculations} failed")
     
     return recommendations
 
 
 def group_recommendations_by_type(recommendations: Dict[str, Dict]) -> List[Dict]:
     """
-    Group features by their recommendation type for API response.
+    Group features by their recommendation type for API response with proper grammar handling.
     
     Args:
         recommendations: Dict mapping feature names to recommendation results
         
     Returns:
-        List of dicts with recommendation_type, features, and reason
+        List of dicts with recommendation_type, features, and reason (with proper grammar)
     """
     grouped = {}
     
@@ -434,9 +560,16 @@ def group_recommendations_by_type(recommendations: Dict[str, Dict]) -> List[Dict
         
         grouped[rec_type]["features"].append(feature_name)
     
-    # Convert to list and sort by rule precedence (lower rule numbers first)
+    # Convert to list and adjust grammar based on feature count
     result = []
     for rec_data in grouped.values():
+        feature_count = len(rec_data["features"])
+        original_reason = rec_data["reason"]
+        
+        # Adjust grammar for singular vs plural features
+        adjusted_reason = adjust_reason_grammar(original_reason, feature_count)
+        rec_data["reason"] = adjusted_reason
+        
         result.append(rec_data)
     
     # Sort by the first feature's rule number (we can get this from the cache)
@@ -451,6 +584,63 @@ def group_recommendations_by_type(recommendations: Dict[str, Dict]) -> List[Dict
     result.sort(key=get_rule_priority)
     
     return result
+
+
+def adjust_reason_grammar(reason: str, feature_count: int) -> str:
+    """
+    Adjust the grammar of reason text based on the number of features.
+    
+    Args:
+        reason: Original reason text (written for multiple features)
+        feature_count: Number of features this reason applies to
+        
+    Returns:
+        Grammatically correct reason text
+    """
+    if feature_count == 1:
+        # Convert plural to singular for specific patterns
+        adjustments = [
+            # Rule 1: Informative missingness
+            ("These numerical features likely have informative missingness.", 
+             "This numerical feature likely has informative missingness."),
+            
+            # Rule 2: Strong correlation
+            ("These features with missing data are strongly correlated with features with complete data. Missing values can be predicted from correlated features, making removal viable.", 
+             "This feature with missing data is strongly correlated with features with complete data. Missing values can be predicted from correlated features, making removal viable."),
+            
+            # Rule 3: Categorical features
+            ("An 'unknown' category can replace missing data for categorical features. If it is an ordinal feature, also consider adjusting the categories", 
+             "An 'unknown' category can replace missing data for this categorical feature. If it is an ordinal feature, also consider adjusting the categories."),
+            ("categorical features", "this categorical feature"),
+            
+            # Fallback reasons
+            ("For categorical features, consider creating", 
+             "For this categorical feature, consider creating"),
+            ("For numerical features, advanced methods", 
+             "For this numerical feature, advanced methods"),
+            
+            # General patterns (order matters - more specific first)
+            ("These features", "This feature"),
+            ("these features", "this feature"),
+            ("numerical features", "this numerical feature"),
+            ("are strongly correlated", "is strongly correlated"),
+            ("have informative", "has informative"),
+        ]
+        
+        adjusted_reason = reason
+        for plural_form, singular_form in adjustments:
+            adjusted_reason = adjusted_reason.replace(plural_form, singular_form)
+        
+        # Ensure proper punctuation
+        if not adjusted_reason.endswith('.'):
+            adjusted_reason += '.'
+            
+        return adjusted_reason
+    else:
+        # Text is already written for multiple features, but ensure proper punctuation
+        if not reason.endswith('.'):
+            reason += '.'
+        return reason
 
 
 # Recommendation Rule Engine
@@ -495,6 +685,25 @@ def _is_mcar_mechanism(dataset_mechanism: str) -> bool:
     return "mcar" in dataset_mechanism.lower()
 
 
+def _get_mechanism_explanation(dataset_mechanism: str) -> str:
+    """Helper: Get detailed explanation for dataset missing data mechanism."""
+    if not dataset_mechanism:
+        return ""
+    
+    mechanism_lower = dataset_mechanism.lower()
+    
+    if "mcar" in mechanism_lower:
+        return "(Missing Completely at Random)"
+    elif "mar" in mechanism_lower and "mnar" in mechanism_lower:
+        return "(Missing at Random or Missing Not at Random)"
+    elif "mar" in mechanism_lower:
+        return "(Missing at Random)"
+    elif "mnar" in mechanism_lower:
+        return "(Missing Not at Random)"
+    else:
+        return ""
+
+
 def get_cached_missing_mechanism_from_request(request) -> Optional[str]:
     """
     Helper function to get cached missing data mechanism from request app state.
@@ -515,6 +724,7 @@ def get_cached_missing_mechanism_from_request(request) -> Optional[str]:
 def calculate_recommendation(feature: Feature, dataset_mechanism: str = None) -> Dict:
     """
     Calculate recommendation for a feature based on the 5 rules in order of precedence.
+    Includes comprehensive error handling and fallback behavior.
     
     Rules (in order):
     1. Informative missingness -> Missing-indicator method
@@ -528,52 +738,121 @@ def calculate_recommendation(feature: Feature, dataset_mechanism: str = None) ->
         dataset_mechanism: Dataset missing data mechanism ("MCAR", "MAR", "MNAR", etc.)
     
     Returns:
-        Dict with recommendation_type, reason, and rule_applied
+        Dict with recommendation_type, reason, and rule_applied, or None if calculation fails
     """
+    import logging
     
-    # Rule 1: Informative missingness (highest priority)
-    if _has_informative_missingness(feature):
-        return {
-            "recommendation_type": "Missing-indicator method",
-            "reason": "Feature has informative missingness (p-value ≤ 0.05)",
-            "rule_applied": 1
-        }
+    logger = logging.getLogger(__name__)
     
-    # Rule 2: Strong correlation with complete features (no informative missingness)
-    if _is_strongly_correlated(feature):
-        return {
-            "recommendation_type": "Remove Features", 
-            "reason": "Feature is strongly correlated with complete features",
-            "rule_applied": 2
-        }
-    
-    # Rule 3: Categorical feature with non-informative missingness and no strong correlations
-    if _is_categorical_feature(feature):
-        return {
-            "recommendation_type": "Create an 'unknown' category or consider adjusting the categories",
-            "reason": "Categorical feature with non-informative missingness",
-            "rule_applied": 3
-        }
-    
-    # Rule 4: MAR/MNAR dataset mechanism
-    if _is_mar_or_mnar_mechanism(dataset_mechanism):
-        return {
-            "recommendation_type": "Machine learning algorithms that can directly handle missing data or multiple imputation",
-            "reason": f"Dataset is {dataset_mechanism} - advanced methods recommended",
-            "rule_applied": 4
-        }
-    
-    # Rule 5: MCAR dataset mechanism (default fallback)
-    if _is_mcar_mechanism(dataset_mechanism):
-        return {
-            "recommendation_type": "All methods are valid: complete case analysis, machine learning algorithms that can directly handle missing data, multiple imputation, etc.",
-            "reason": f"Dataset is {dataset_mechanism} - all methods are appropriate",
-            "rule_applied": 5
-        }
-    
-    # Fallback if no mechanism is provided or recognized
-    return {
-        "recommendation_type": "Machine learning algorithms that can directly handle missing data or multiple imputation",
-        "reason": "Dataset mechanism unknown - advanced methods recommended as safe default",
-        "rule_applied": 4  # Default to rule 4 as conservative approach
-    }
+    try:
+        # Validate feature object
+        if not feature or not hasattr(feature, 'name'):
+            logger.error("Invalid feature object provided")
+            return None
+        
+        feature_name = feature.name
+        logger.debug(f"Calculating recommendation for feature: {feature_name}")
+        
+        # Rule 1: Informative missingness (highest priority)
+        try:
+            if _has_informative_missingness(feature):
+                reason = "These numerical features likely have informative missingness."
+                logger.debug(f"Applied Rule 1 (informative missingness) for {feature_name}")
+                return {
+                    "recommendation_type": "Missing-indicator method",
+                    "reason": reason,
+                    "rule_applied": 1
+                }
+        except Exception as e:
+            logger.warning(f"Error checking informative missingness for {feature_name}: {str(e)}")
+            # Continue to next rule
+        
+        # Rule 2: Strong correlation with complete features (no informative missingness)
+        try:
+            if _is_strongly_correlated(feature):
+                reason = "These features with missing data are strongly correlated with features with complete data. Missing values can be predicted from correlated features, making removal viable."
+                
+                logger.debug(f"Applied Rule 2 (strong correlation) for {feature_name}")
+                return {
+                    "recommendation_type": "Remove Features", 
+                    "reason": reason,
+                    "rule_applied": 2
+                }
+        except Exception as e:
+            logger.warning(f"Error checking correlations for {feature_name}: {str(e)}")
+            # Continue to next rule
+        
+        # Rule 3: Categorical feature with non-informative missingness and no strong correlations
+        try:
+            if _is_categorical_feature(feature):
+                reason = "An 'unknown' category can replace missing data for categorical features. If it is an ordinal feature, also consider adjusting the categories"
+                logger.debug(f"Applied Rule 3 (categorical feature) for {feature_name}")
+                return {
+                    "recommendation_type": "Create an 'unknown' category or consider adjusting the categories",
+                    "reason": reason,
+                    "rule_applied": 3
+                }
+        except Exception as e:
+            logger.warning(f"Error checking feature type for {feature_name}: {str(e)}")
+            # Continue to next rule
+        
+        # Rule 4: MAR/MNAR dataset mechanism
+        try:
+            if _is_mar_or_mnar_mechanism(dataset_mechanism):
+                mechanism_explanation = _get_mechanism_explanation(dataset_mechanism)
+                reason = f"Since your data is {mechanism_explanation}, imputing missing data with mean, median, or mode will likely introduce bias. Consider the alternatives instead."
+                logger.debug(f"Applied Rule 4 (MAR/MNAR mechanism) for {feature_name}")
+                return {
+                    "recommendation_type": "Machine learning algorithms that can directly handle missing data or multiple imputation",
+                    "reason": reason,
+                    "rule_applied": 4
+                }
+        except Exception as e:
+            logger.warning(f"Error checking MAR/MNAR mechanism for {feature_name}: {str(e)}")
+            # Continue to next rule
+        
+        # Rule 5: MCAR dataset mechanism
+        try:
+            if _is_mcar_mechanism(dataset_mechanism):
+                mechanism_explanation = _get_mechanism_explanation(dataset_mechanism)
+                reason = f"Since your data is {mechanism_explanation}, all missing data treatment methods are valid."
+                logger.debug(f"Applied Rule 5 (MCAR mechanism) for {feature_name}")
+                return {
+                    "recommendation_type": "All methods are valid: complete case analysis, machine learning algorithms that can directly handle missing data, multiple imputation, etc.",
+                    "reason": reason,
+                    "rule_applied": 5
+                }
+        except Exception as e:
+            logger.warning(f"Error checking MCAR mechanism for {feature_name}: {str(e)}")
+            # Continue to fallback
+        
+        # Fallback logic
+        try:
+            # Determine fallback based on available information
+            fallback_reason = "Dataset missing data mechanism could not be determined."
+            
+            # Try to provide more specific fallback based on feature type
+            if hasattr(feature, 'data_type'):
+                if feature.data_type == "C":
+                    fallback_reason += " For categorical features, consider creating an 'unknown' category or using advanced imputation methods."
+                elif feature.data_type == "N":
+                    fallback_reason += " For numerical features, advanced methods like machine learning algorithms or multiple imputation are recommended."
+                else:
+                    fallback_reason += " Advanced methods are recommended as a safe default."
+            else:
+                fallback_reason += " Advanced methods are recommended as a safe default to handle potential systematic missing data patterns."
+            
+            logger.debug(f"Applied fallback recommendation for {feature_name}")
+            return {
+                "recommendation_type": "Machine learning algorithms that can directly handle missing data or multiple imputation",
+                "reason": fallback_reason,
+                "rule_applied": 4  # Default to rule 4 as conservative approach
+            }
+            
+        except Exception as fallback_error:
+            logger.error(f"Error in fallback recommendation for {feature_name}: {str(fallback_error)}")
+            return None
+        
+    except Exception as e:
+        logger.error(f"Unexpected error calculating recommendation for feature {getattr(feature, 'name', 'unknown')}: {str(e)}")
+        return None
