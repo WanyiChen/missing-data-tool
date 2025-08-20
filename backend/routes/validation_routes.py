@@ -124,6 +124,10 @@ async def update_feature_names(request: Request, featureNames: str = Form(...)):
 
     request.app.state.df = df
     request.app.state.feature_names = featureNames == "true"
+    
+    # Clear cached missing data mechanism since dataframe changed
+    from routes.dashboard_routes import clear_missing_mechanism_cache
+    clear_missing_mechanism_cache(request)
 
     title_row = df.columns.tolist()
     data_rows = df.head(10).values.tolist()
@@ -192,6 +196,10 @@ async def submit_feature_names(request: Request, featureNames: str = Form(...)):
     # Store the processed dataframe
     request.app.state.df = df
     
+    # Clear cached missing data mechanism since dataframe changed
+    from routes.dashboard_routes import clear_missing_mechanism_cache
+    clear_missing_mechanism_cache(request)
+    
     return {"success": True, "message": "Feature names configuration saved successfully."}
 
 @router.post("/api/submit-missing-data-options")
@@ -236,6 +244,10 @@ async def submit_missing_data_options(request: Request, missingDataOptions: str 
     # Store the processed dataframe
     request.app.state.df = df_processed
     
+    # Clear cached missing data mechanism since dataframe changed
+    from routes.dashboard_routes import clear_missing_mechanism_cache
+    clear_missing_mechanism_cache(request)
+    
     return {"success": True, "message": "Missing data options saved successfully."}
 
 @router.post("/api/submit-target-feature")
@@ -267,6 +279,10 @@ async def submit_target_feature(request: Request, targetFeature: str = Form(...)
         # Store the final processed dataframe
         request.app.state.df = df_encoded
         
+        # Clear cached missing data mechanism since dataframe changed
+        from routes.dashboard_routes import clear_missing_mechanism_cache
+        clear_missing_mechanism_cache(request)
+        
         return {"success": True, "message": "Target feature configuration skipped successfully."}
     
     if targetType not in ["numerical", "categorical"]:
@@ -297,6 +313,10 @@ async def submit_target_feature(request: Request, targetFeature: str = Form(...)
     
     # Store the final processed dataframe
     request.app.state.df = df_encoded
+    
+    # Clear cached missing data mechanism since dataframe changed
+    from routes.dashboard_routes import clear_missing_mechanism_cache
+    clear_missing_mechanism_cache(request)
     
     return {"success": True, "message": "Target feature configuration saved successfully."}
 
