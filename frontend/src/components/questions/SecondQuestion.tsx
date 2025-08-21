@@ -56,12 +56,20 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         columns_with_missing: Record<string, number>;
     } | null>(null);
     const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+    const [detectedMissing, setDetectedMissing] = useState<{
+        blanks: boolean;
+        na: boolean;
+    } | null>({blanks: false, na: false});
 
     useEffect(() => {
         axios.get("/api/detect-missing-data-options").then((res) => {
             if (res.data.success && res.data.suggestions) {
                 setMissingDataOptions({
                     ...missingDataOptions,
+                    blanks: res.data.suggestions.blanks,
+                    na: res.data.suggestions.na,
+                });
+                setDetectedMissing({
                     blanks: res.data.suggestions.blanks,
                     na: res.data.suggestions.na,
                 });
@@ -153,10 +161,9 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         columns_with_missing: Record<string, number>;
     } | null> => {
         try {
-            const response = await fetch("/api/missing-data-analysis");
-            if (response.ok) {
-                const data = await response.json();
-                return data;
+            const res = await axios.get("/api/missing-data-analysis");
+            if (res.data.success) {
+                return res.data;
             }
         } catch (error) {
             console.log(
@@ -440,7 +447,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                                 checked={missingDataOptions.blanks}
                                 onChange={() => handleCheckbox("blanks")}
                             />
-                            <span>Blanks (auto-detected)</span>
+                            <span>Blanks {detectedMissing.blanks ? "(Auto-Detected)" : ""}</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -448,7 +455,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                                 checked={missingDataOptions.na}
                                 onChange={() => handleCheckbox("na")}
                             />
-                            <span>N/A</span>
+                            <span>N/A {detectedMissing.na ? "(Auto-Detected)" : ""}</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input
