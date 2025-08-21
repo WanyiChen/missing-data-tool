@@ -23,13 +23,12 @@ def case_count(request: Request):
     df, error = get_uploaded_dataframe(request)
     if error:
         return error
-    total_cases = len(df)
     total_cells = df.shape[0] * df.shape[1]
     missing_cells = df.isnull().sum().sum()
     missing_percentage = (missing_cells / total_cells * 100) if total_cells > 0 else 0
     return {
         "success": True,
-        "total_cases": int(total_cases),
+        "total_missing_cases": int(missing_cells),
         "missing_percentage": round(missing_percentage, 2)
     }
 

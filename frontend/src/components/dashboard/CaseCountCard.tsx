@@ -5,7 +5,7 @@ import { BaseCard } from "./base";
 const CaseCountCard: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [caseCount, setCaseCount] = useState<number | null>(null);
+    const [missingCaseCount, setMissingCaseCount] = useState<number | null>(null);
     const [missingPercent, setMissingPercent] = useState<number | null>(null);
 
     useEffect(() => {
@@ -15,7 +15,7 @@ const CaseCountCard: React.FC = () => {
             try {
                 const res = await axios.get("/api/case-count");
                 if (res.data.success) {
-                    setCaseCount(res.data.total_cases);
+                    setMissingCaseCount(res.data.total_missing_cases);
                     setMissingPercent(res.data.missing_percentage);
                 } else {
                     setError(res.data.message || "Failed to fetch data");
@@ -37,7 +37,7 @@ const CaseCountCard: React.FC = () => {
                 <div className="text-red-500 text-center">{error}</div>
             ) : (
                 <div className="text-2xl font-semibold mb-1 text-center">
-                    {caseCount} ({missingPercent}%)
+                    {missingCaseCount} ({missingPercent}%)
                 </div>
             )}
         </BaseCard>
