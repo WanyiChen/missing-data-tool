@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { BaseCard } from "./base";
+import { ModalLink } from "../common/modal";
 
 const MechanismCard: React.FC = () => {
     const [loading, setLoading] = useState(true);
@@ -49,14 +50,11 @@ const MechanismCard: React.FC = () => {
                 <div className="text-center text-red-500 text-xs">{error}</div>
             ) : mechanism ? (
                 <>
-                    <div className="text-xl font-semibold mb-1 text-center flex items-center justify-center gap-1">
-                        {mechanism.mechanism_acronym}
-                        <InfoOutlinedIcon
-                            fontSize="small"
-                            className="text-gray-400 cursor-pointer"
-                            titleAccess={mechanism.mechanism_full}
-                        />
-                    </div>
+                    <ModalLink
+                        text={mechanism.mechanism_acronym}
+                        className="font-semibold text-xl mb-1"
+                        onClick={() => {} /* MDT-26 */}
+                    />
                     <div className="text-xs text-gray-500 text-center">
                         {mechanism.mechanism_full}
                     </div>

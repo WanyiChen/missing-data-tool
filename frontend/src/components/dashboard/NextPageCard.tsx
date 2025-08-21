@@ -2,6 +2,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { BaseCard } from "./base";
+import { ModalLink } from "../common/modal";
 
 const NextPageCard: React.FC = () => {
     const navigate = useNavigate();
@@ -13,20 +14,14 @@ const NextPageCard: React.FC = () => {
     return (
         <BaseCard className="w-full p-4" minHeight="70px">
             <div className="flex items-center justify-center gap-2">
-                <a
+                <ModalLink
+                    text={"What if I delete all pages with missing data?"}
+                    className="font-medium text-sm"
                     onClick={handleClick}
-                    className="text-blue-600 hover:text-blue-800 font-medium text-sm cursor-pointer"
-                >
-                    What if I delete all pages with missing data?
-                    <InfoOutlinedIcon
-                        fontSize="small"
-                        className="ml-0.5 text-blue-600 hover:text-blue-800cursor-pointer"
-                    />
-                </a>
-                
+                />
             </div>
         </BaseCard>
     );
 };
 
-export default NextPageCard; 
+export default NextPageCard;

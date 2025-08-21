@@ -3,8 +3,15 @@ import axios from "axios";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
-import { DataTypeDropdown, FilterDropdown, DataTypeFilterDropdown, CorrelationFilterDropdown, CorrelationDetailsDropdown } from "./filter";
+import {
+    DataTypeDropdown,
+    FilterDropdown,
+    DataTypeFilterDropdown,
+    CorrelationFilterDropdown,
+    CorrelationDetailsDropdown,
+} from "./filter";
 import type { SortOption, DataTypeFilter, CorrelationFilter } from "./filter";
+import { ModalLink } from "../common/modal";
 
 interface FeatureData {
     feature_name: string;
@@ -90,28 +97,36 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
         x: number;
         y: number;
     } | null>(null);
-    const [correlationFilterButtonPosition, setCorrelationFilterButtonPosition] =
+    const [
+        correlationFilterButtonPosition,
+        setCorrelationFilterButtonPosition,
+    ] = useState<{
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+    } | null>(null);
+    const [correlationFilter, setCorrelationFilter] =
+        useState<CorrelationFilter>({
+            correlations: true,
+            noCorrelations: true,
+            pearsonThreshold: 0.7,
+            cramerVThreshold: 0.7,
+            etaThreshold: 0.7,
+        });
+
+    // Correlation details dropdown states
+    const [openCorrelationDetailsDropdown, setOpenCorrelationDetailsDropdown] =
+        useState<string | null>(null);
+    const [correlationDetailsPosition, setCorrelationDetailsPosition] =
         useState<{
             x: number;
             y: number;
-            width: number;
-            height: number;
         } | null>(null);
-    const [correlationFilter, setCorrelationFilter] = useState<CorrelationFilter>({
-        correlations: true,
-        noCorrelations: true,
-        pearsonThreshold: 0.7,
-        cramerVThreshold: 0.7,
-        etaThreshold: 0.7,
-    });
-
-    // Correlation details dropdown states
-    const [openCorrelationDetailsDropdown, setOpenCorrelationDetailsDropdown] = useState<string | null>(null);
-    const [correlationDetailsPosition, setCorrelationDetailsPosition] = useState<{
-        x: number;
-        y: number;
-    } | null>(null);
-    const [correlationDetailsButtonPosition, setCorrelationDetailsButtonPosition] = useState<{
+    const [
+        correlationDetailsButtonPosition,
+        setCorrelationDetailsButtonPosition,
+    ] = useState<{
         x: number;
         y: number;
         width: number;
@@ -137,13 +152,15 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                 const res = await axios.get("/api/missing-features-table");
                 if (res.data.success) {
                     // Initialize features with loading states
-                    const featuresWithLoading = res.data.features.map((feature: FeatureData) => ({
-                        ...feature,
-                        isLoadingCorrelation: true,
-                        isLoadingInformative: true,
-                    }));
+                    const featuresWithLoading = res.data.features.map(
+                        (feature: FeatureData) => ({
+                            ...feature,
+                            isLoadingCorrelation: true,
+                            isLoadingInformative: true,
+                        })
+                    );
                     setFeatures(featuresWithLoading);
-                    
+
                     // Start loading detailed analysis for each feature
                     featuresWithLoading.forEach((feature: FeatureData) => {
                         loadFeatureAnalysis(feature.feature_name);
@@ -167,29 +184,43 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                 loadFeatureAnalysis(feature.feature_name);
             });
         }
-    }, [correlationFilter.pearsonThreshold, correlationFilter.cramerVThreshold, correlationFilter.etaThreshold]);
+    }, [
+        correlationFilter.pearsonThreshold,
+        correlationFilter.cramerVThreshold,
+        correlationFilter.etaThreshold,
+    ]);
 
     // Load detailed analysis for a specific feature
     const loadFeatureAnalysis = async (featureName: string) => {
         try {
             const params = new URLSearchParams({
-                pearson_threshold: correlationFilter.pearsonThreshold.toString(),
-                cramer_v_threshold: correlationFilter.cramerVThreshold.toString(),
-                eta_squared_threshold: correlationFilter.etaThreshold.toString(),
+                pearson_threshold:
+                    correlationFilter.pearsonThreshold.toString(),
+                cramer_v_threshold:
+                    correlationFilter.cramerVThreshold.toString(),
+                eta_squared_threshold:
+                    correlationFilter.etaThreshold.toString(),
             });
-            
-            const res = await axios.get(`/api/feature-details/${encodeURIComponent(featureName)}?${params}`);
+
+            const res = await axios.get(
+                `/api/feature-details/${encodeURIComponent(
+                    featureName
+                )}?${params}`
+            );
             if (res.data.success) {
                 setFeatures((prevFeatures: FeatureData[]) =>
                     prevFeatures.map((feature: FeatureData) =>
                         feature.feature_name === featureName
                             ? {
                                   ...feature,
-                                  most_correlated_with: res.data.correlated_features.length > 0 
-                                      ? res.data.correlated_features[0] 
-                                      : null, // Keep the first one for now, we'll update the UI later
-                                  correlated_features: res.data.correlated_features, // Store all correlations
-                                  informative_missingness: res.data.informative_missingness,
+                                  most_correlated_with:
+                                      res.data.correlated_features.length > 0
+                                          ? res.data.correlated_features[0]
+                                          : null, // Keep the first one for now, we'll update the UI later
+                                  correlated_features:
+                                      res.data.correlated_features, // Store all correlations
+                                  informative_missingness:
+                                      res.data.informative_missingness,
                                   isLoadingCorrelation: false,
                                   isLoadingInformative: false,
                               }
@@ -423,7 +454,10 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
         }
     };
 
-    const toggleCorrelationDetailsDropdown = (featureName: string, event?: React.MouseEvent) => {
+    const toggleCorrelationDetailsDropdown = (
+        featureName: string,
+        event?: React.MouseEvent
+    ) => {
         if (openCorrelationDetailsDropdown === featureName) {
             closeCorrelationDetailsDropdown();
         } else {
@@ -455,32 +489,47 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
     // Filter features based on data type filter and correlation filter
     const filteredFeatures = features.filter((feature: FeatureData) => {
         // Data type filtering
-        const passesDataTypeFilter = 
+        const passesDataTypeFilter =
             (feature.data_type === "N" && dataTypeFilter.numerical) ||
             (feature.data_type === "C" && dataTypeFilter.categorical);
-        
+
         if (!passesDataTypeFilter) return false;
 
         // Correlation filtering
-        const hasCorrelation = feature.correlated_features && feature.correlated_features.length > 0;
-        const correlationPassesThreshold = hasCorrelation && (() => {
-            // Check if any correlation meets the thresholds
-            return feature.correlated_features!.some(correlation => {
-                switch (correlation.correlation_type) {
-                    case "r":
-                        return Math.abs(correlation.correlation_value) >= correlationFilter.pearsonThreshold;
-                    case "V":
-                        return correlation.correlation_value >= correlationFilter.cramerVThreshold;
-                    case "η":
-                        return correlation.correlation_value >= correlationFilter.etaThreshold;
-                    default:
-                        return false;
-                }
-            });
-        })();
+        const hasCorrelation =
+            feature.correlated_features &&
+            feature.correlated_features.length > 0;
+        const correlationPassesThreshold =
+            hasCorrelation &&
+            (() => {
+                // Check if any correlation meets the thresholds
+                return feature.correlated_features!.some((correlation) => {
+                    switch (correlation.correlation_type) {
+                        case "r":
+                            return (
+                                Math.abs(correlation.correlation_value) >=
+                                correlationFilter.pearsonThreshold
+                            );
+                        case "V":
+                            return (
+                                correlation.correlation_value >=
+                                correlationFilter.cramerVThreshold
+                            );
+                        case "η":
+                            return (
+                                correlation.correlation_value >=
+                                correlationFilter.etaThreshold
+                            );
+                        default:
+                            return false;
+                    }
+                });
+            })();
 
-        const shouldShowCorrelations = correlationFilter.correlations && correlationPassesThreshold;
-        const shouldShowNoCorrelations = correlationFilter.noCorrelations && !hasCorrelation;
+        const shouldShowCorrelations =
+            correlationFilter.correlations && correlationPassesThreshold;
+        const shouldShowNoCorrelations =
+            correlationFilter.noCorrelations && !hasCorrelation;
 
         return shouldShowCorrelations || shouldShowNoCorrelations;
     });
@@ -503,20 +552,14 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                             <tr className="border-b">
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
                                     <div className="flex items-center gap-1 justify-center">
-                                        <span
-                                            className="cursor-pointer hover:underline text-blue-800"
+                                        <ModalLink
+                                            text={"Data Type"}
                                             onClick={() => {
                                                 onInfoClick?.(
-                                                    'Data types are auto-detected. "N" stands for numerical, and "C" stands for categorical. If the auto-detection is wrong, click on the letter to change data type.\n Numerical data are numbers representing measurable quantities, such as a person\'s age and income. Categorical data are labels describing different characteristics. Categorical data has two subcategories - nominal data and ordinal data. Nominal data have no inherent order among the categories, such as a person\'s gender and hometown. Ordinal data are labels with inherent orders, such as student grades where "A" is considered better than "B."'
+                                                    'Data types are auto-detected. If the auto-detection is wrong, click on the letter to change data type.\n Numerical data are numbers representing measurable quantities, such as a person\'s age and income. Categorical data are labels describing different characteristics. Categorical data has two subcategories - nominal data and ordinal data. Nominal data have no inherent order among the categories, such as a person\'s gender and hometown. Ordinal data are labels with inherent orders, such as student grades where "A" is considered better than "B."'
                                                 );
                                             }}
-                                        >
-                                            Data Type
-                                            <InfoOutlinedIcon
-                                                fontSize="small"
-                                                className="text-blue-800"
-                                            />
-                                        </span>
+                                        />
                                         <button
                                             onClick={(e: React.MouseEvent) => {
                                                 e.stopPropagation();
@@ -590,24 +633,20 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                 </th>
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
                                     <div className="flex items-center gap-1 justify-center">
-                                        <span
-                                            className="cursor-pointer hover:underline text-blue-800"
+                                        <ModalLink
+                                            text={"Most Correlated With"}
                                             onClick={() => {
                                                 onInfoClick?.(
                                                     'Some features are strongly correlated with other features. For numerical variables, their correlations are calculated by the correlation coefficient, denoted by r. For categorical variable, their correlations are calculated by Cramer\'s V, denoted by V.\n The "most correlated with" column shows features that have the strongest correlation with the feature listed in the "feature name" column. If more than one features are strongly associated, they will be shown by clicking on the expand (▸) button.'
                                                 );
                                             }}
-                                        >
-                                            Most Correlated With
-                                        </span>
-                                        <InfoOutlinedIcon
-                                            fontSize="small"
-                                            className="text-blue-800"
                                         />
                                         <button
                                             onClick={(e: React.MouseEvent) => {
                                                 e.stopPropagation();
-                                                toggleCorrelationFilterDropdown(e);
+                                                toggleCorrelationFilterDropdown(
+                                                    e
+                                                );
                                             }}
                                             className={`group transition-colors duration-100 cursor-pointer p-1 rounded hover:bg-gray-200`}
                                         >
@@ -620,137 +659,153 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                 </th>
                                 <th className="text-center py-3 px-2 font-medium text-gray-700 border">
                                     <div className="flex items-center gap-1 justify-center">
-                                        <span
-                                            className="cursor-pointer hover:underline text-blue-800"
+                                        <ModalLink
+                                            text={"Informative Missingness"}
                                             onClick={() => {
                                                 onInfoClick?.(
                                                     "Sometimes, the fact that some cases are missing some particular features can be informative. For instance, in a hypothetical financial dataset, if people with lower credit scores are less likely to report their credit scores, then whether a person's credit score is missing is informative. Informative missingness often happens when data is Missing Not at Random (MNAR). \nIn the table, informative missingness is calculated by testing the relationships between the user-specified target feature and the missingness of all other features. If p-value > 0.05, the missingness is considered not informative. If p-value <= 0.05, data is considered informative. \nFor more details on how the p-value is calculated, please check out this paper: Van Ness, M., Bosschieter, T. M., Halpin- Gregorio, R., & Udell, M. (2023, August). The missing indicator method: From low to high dimensions. In Proceedings of the 29th ACM SIGKDD Conference on Knowledge Discovery and Data Mining (pp. 5004-5015)."
                                                 );
                                             }}
-                                        >
-                                            Informative Missingness
-                                        </span>
-                                        <InfoOutlinedIcon
-                                            fontSize="small"
-                                            className="text-blue-800"
                                         />
                                     </div>
                                 </th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredFeatures.map((feature: FeatureData, index: number) => (
-                                <tr key={index} className="border-b">
-                                    <td className="text-center py-3 px-2 border">
-                                        <button
-                                            onClick={(e: React.MouseEvent) =>
-                                                toggleDropdown(
-                                                    feature.feature_name,
-                                                    e
-                                                )
-                                            }
-                                            className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 hover:scale-105 transition-all duration-200 cursor-pointer"
-                                        >
-                                            {getDataTypeDisplay(
-                                                feature.data_type
+                            {filteredFeatures.map(
+                                (feature: FeatureData, index: number) => (
+                                    <tr key={index} className="border-b">
+                                        <td className="text-center py-3 px-2 border">
+                                            <button
+                                                onClick={(
+                                                    e: React.MouseEvent
+                                                ) =>
+                                                    toggleDropdown(
+                                                        feature.feature_name,
+                                                        e
+                                                    )
+                                                }
+                                                className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 hover:scale-105 transition-all duration-200 cursor-pointer"
+                                            >
+                                                {getDataTypeDisplay(
+                                                    feature.data_type
+                                                )}
+                                            </button>
+                                        </td>
+                                        <td className="text-center py-3 px-2 border">
+                                            <a
+                                                href="#"
+                                                className="text-blue-600 hover:text-blue-800 underline"
+                                                onClick={(
+                                                    e: React.MouseEvent
+                                                ) => {
+                                                    e.preventDefault();
+                                                    // TODO: Implement feature detail view
+                                                    console.log(
+                                                        `Clicked on ${feature.feature_name}`
+                                                    );
+                                                }}
+                                            >
+                                                {feature.feature_name}
+                                            </a>
+                                        </td>
+                                        <td className="text-center py-3 px-2 border font-medium">
+                                            {feature.number_missing.toLocaleString()}
+                                        </td>
+                                        <td className="text-center py-3 px-2 border">
+                                            {feature.percentage_missing.toFixed(
+                                                2
                                             )}
-                                        </button>
-                                    </td>
-                                    <td className="text-center py-3 px-2 border">
-                                        <a
-                                            href="#"
-                                            className="text-blue-600 hover:text-blue-800 underline"
-                                            onClick={(e: React.MouseEvent) => {
-                                                e.preventDefault();
-                                                // TODO: Implement feature detail view
-                                                console.log(
-                                                    `Clicked on ${feature.feature_name}`
-                                                );
-                                            }}
-                                        >
-                                            {feature.feature_name}
-                                        </a>
-                                    </td>
-                                    <td className="text-center py-3 px-2 border font-medium">
-                                        {feature.number_missing.toLocaleString()}
-                                    </td>
-                                    <td className="text-center py-3 px-2 border">
-                                        {feature.percentage_missing.toFixed(2)}%
-                                    </td>
-                                    <td className="text-center py-3 px-2 border">
-                                        {feature.isLoadingCorrelation ? (
-                                            <div className="flex items-center justify-center">
-                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                                                <span className="ml-2 text-xs text-gray-500">Loading...</span>
-                                            </div>
-                                        ) : feature.most_correlated_with ? (
-                                            <div className="flex items-center gap-1 justify-center">
-                                                <div className="flex items-center gap-1">
-                                                    <span className="text-gray-600">
-                                                        {
-                                                            feature
-                                                                .most_correlated_with
-                                                                .feature_name
-                                                        }
+                                            %
+                                        </td>
+                                        <td className="text-center py-3 px-2 border">
+                                            {feature.isLoadingCorrelation ? (
+                                                <div className="flex items-center justify-center">
+                                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                                                    <span className="ml-2 text-xs text-gray-500">
+                                                        Loading...
                                                     </span>
-                                                    <span className="text-xs text-gray-500">
-                                                        (
-                                                        {
-                                                            feature
-                                                                .most_correlated_with
-                                                                .correlation_type
-                                                        }{" "}
-                                                        ={" "}
-                                                        {
-                                                            feature
-                                                                .most_correlated_with
-                                                                .correlation_value
-                                                        }
+                                                </div>
+                                            ) : feature.most_correlated_with ? (
+                                                <div className="flex items-center gap-1 justify-center">
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-gray-600">
+                                                            {
+                                                                feature
+                                                                    .most_correlated_with
+                                                                    .feature_name
+                                                            }
+                                                        </span>
+                                                        <span className="text-xs text-gray-500">
+                                                            (
+                                                            {
+                                                                feature
+                                                                    .most_correlated_with
+                                                                    .correlation_type
+                                                            }{" "}
+                                                            ={" "}
+                                                            {
+                                                                feature
+                                                                    .most_correlated_with
+                                                                    .correlation_value
+                                                            }
+                                                            )
+                                                        </span>
+                                                    </div>
+                                                    {feature.correlated_features &&
+                                                        feature
+                                                            .correlated_features
+                                                            .length > 1 && (
+                                                            <button
+                                                                onClick={(
+                                                                    e: React.MouseEvent
+                                                                ) => {
+                                                                    e.stopPropagation();
+                                                                    toggleCorrelationDetailsDropdown(
+                                                                        feature.feature_name,
+                                                                        e
+                                                                    );
+                                                                }}
+                                                                className="ml-1 text-gray-400 hover:text-gray-600 transition-colors duration-200 cursor-pointer"
+                                                            >
+                                                                <ArrowDropDownIcon fontSize="small" />
+                                                            </button>
+                                                        )}
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-400">
+                                                    --
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="text-center py-3 px-2 border">
+                                            {feature.isLoadingInformative ? (
+                                                <div className="flex items-center justify-center">
+                                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                                                    <span className="ml-2 text-xs text-gray-500">
+                                                        Loading...
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300">
+                                                    {feature
+                                                        .informative_missingness
+                                                        .is_informative
+                                                        ? "Yes"
+                                                        : "No"}
+                                                    <span className="ml-1">
+                                                        (p ={" "}
+                                                        {feature.informative_missingness.p_value.toFixed(
+                                                            2
+                                                        )}
                                                         )
                                                     </span>
                                                 </div>
-                                                {feature.correlated_features && feature.correlated_features.length > 1 && (
-                                                    <button
-                                                        onClick={(e: React.MouseEvent) => {
-                                                            e.stopPropagation();
-                                                            toggleCorrelationDetailsDropdown(feature.feature_name, e);
-                                                        }}
-                                                        className="ml-1 text-gray-400 hover:text-gray-600 transition-colors duration-200 cursor-pointer"
-                                                    >
-                                                        <ArrowDropDownIcon fontSize="small" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <span className="text-gray-400">
-                                                --
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="text-center py-3 px-2 border">
-                                        {feature.isLoadingInformative ? (
-                                            <div className="flex items-center justify-center">
-                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                                                <span className="ml-2 text-xs text-gray-500">Loading...</span>
-                                            </div>
-                                        ) : (
-                                            <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300">
-                                                {feature.informative_missingness
-                                                    .is_informative
-                                                    ? "Yes"
-                                                    : "No"}
-                                                <span className="ml-1">
-                                                    (p ={" "}
-                                                    {feature.informative_missingness.p_value.toFixed(
-                                                        2
-                                                    )}
-                                                    )
-                                                </span>
-                                            </div>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
+                                            )}
+                                        </td>
+                                    </tr>
+                                )
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -810,7 +865,11 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
             <CorrelationDetailsDropdown
                 isOpen={!!openCorrelationDetailsDropdown}
                 onClose={closeCorrelationDetailsDropdown}
-                correlations={features.find(f => f.feature_name === openCorrelationDetailsDropdown)?.correlated_features || []}
+                correlations={
+                    features.find(
+                        (f) => f.feature_name === openCorrelationDetailsDropdown
+                    )?.correlated_features || []
+                }
                 position={correlationDetailsPosition}
                 buttonPosition={correlationDetailsButtonPosition}
             />
