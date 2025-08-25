@@ -263,7 +263,7 @@ def get_all_features_from_cache() -> List[Feature]:
 
 
 def initialize_feature_cache(df: pd.DataFrame):
-    """Initialize the feature cache with all features that have missing data. Includes comprehensive error handling."""
+    """Initialize the feature cache with all features in the dataset. Includes comprehensive error handling."""
     import logging
     
     logger = logging.getLogger(__name__)
@@ -291,8 +291,6 @@ def initialize_feature_cache(df: pd.DataFrame):
                 # Calculate missing data statistics
                 try:
                     number_missing = df[column].isnull().sum()
-                    if number_missing == 0:
-                        continue  # Skip features with no missing data
                     
                     total_rows = len(df)
                     if total_rows == 0:
@@ -346,7 +344,7 @@ def initialize_feature_cache(df: pd.DataFrame):
             if features_skipped > 0:
                 raise ValueError(f"No features could be processed successfully. {features_skipped} features had errors.")
             else:
-                logger.info("No features with missing data found in dataset")
+                logger.info("No features found in dataset")
         
     except Exception as e:
         logger.error(f"Critical error initializing feature cache: {str(e)}")

@@ -39,14 +39,15 @@ def get_features_table(request: Request, page: int = 0, limit: int = 10):
         if not FEATURE_CACHE:
             initialize_feature_cache(df)
         
-        # Get all features from cache
+        # Get all features from cache and filter for those with missing data
         all_features = get_all_features_from_cache()
+        missing_features = [feature for feature in all_features if feature.number_missing > 0]
         
         # Calculate pagination
-        total_features = len(all_features)
+        total_features = len(missing_features)
         start_idx = page * limit
         end_idx = start_idx + limit
-        paginated_features = [feature.to_basic_dict() for feature in all_features[start_idx:end_idx]]
+        paginated_features = [feature.to_basic_dict() for feature in missing_features[start_idx:end_idx]]
         
         return {
             "success": True,
@@ -74,45 +75,22 @@ def get_complete_features_table(request: Request, page: int = 0, limit: int = 10
         return error
     
     try:
-        # Get complete features directly from dataframe
-        complete_features = []
+        # Initialize cache if empty
+        if not FEATURE_CACHE:
+            initialize_feature_cache(df)
         
-        for column in df.columns:
-            try:
-                # Calculate missing data statistics
-                number_missing = df[column].isnull().sum()
-                
-                # Only include features with no missing data
-                if number_missing == 0:
-                    total_rows = len(df)
-                    percentage_missing = 0.0
-                    
-                    # Auto-detect data type based on pandas dtype
-                    original_dtype = str(df[column].dtype)
-                    data_type = "N" if df[column].dtype in ['int64', 'float64', 'int32', 'float32'] else "C"
-                    
-                    # Create feature dict in same format as missing features endpoint
-                    feature_dict = {
-                        "feature_name": column,
-                        "data_type": data_type,
-                        "number_missing": int(number_missing),
-                        "percentage_missing": percentage_missing,
-                    }
-                    
-                    complete_features.append(feature_dict)
-                    
-            except Exception as column_error:
-                # Skip columns that cause errors
-                continue
+        # Get all features from cache and filter for those with no missing data
+        all_features = get_all_features_from_cache()
+        complete_features = [feature for feature in all_features if feature.number_missing == 0]
         
         # Sort features alphabetically by name for consistent ordering
-        complete_features.sort(key=lambda x: x["feature_name"])
+        complete_features.sort(key=lambda x: x.name)
         
         # Calculate pagination
         total_features = len(complete_features)
         start_idx = page * limit
         end_idx = start_idx + limit
-        paginated_features = complete_features[start_idx:end_idx]
+        paginated_features = [feature.to_basic_dict() for feature in complete_features[start_idx:end_idx]]
         
         return {
             "success": True,
@@ -138,7 +116,7 @@ def get_feature_details(
     feature_name: str,
     pearson_threshold: float = 0.7,
     cramer_v_threshold: float = 0.7,
-    eta_squared_threshold: float = 0.7
+    eta_threshold: float = 0.7
 ):
     """Get complete details for a specific feature including correlation and informative missingness."""
     df, error = get_uploaded_dataframe(request)
@@ -162,12 +140,12 @@ def get_feature_details(
         current_thresholds = {
             "pearson_threshold": pearson_threshold,
             "cramer_v_threshold": cramer_v_threshold,
-            "eta_squared_threshold": eta_squared_threshold
+            "eta_threshold": eta_threshold
         }
         
         if feature.should_recalculate_correlations(current_thresholds):
             correlations_data = calculate_feature_correlations_with_thresholds(
-                df, feature_name, pearson_threshold, cramer_v_threshold, eta_squared_threshold
+                df, feature_name, pearson_threshold, cramer_v_threshold, eta_threshold
             )
             feature.set_correlated_features_with_thresholds(correlations_data, current_thresholds)
         
