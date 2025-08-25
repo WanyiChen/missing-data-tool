@@ -8,6 +8,7 @@ import MechanismCard from "../components/dashboard/MechanismCard";
 import CaseCountCard from "../components/dashboard/CaseCountCard";
 import FeatureCountCard from "../components/dashboard/FeatureCountCard";
 import MissingFeaturesTableCard from "../components/dashboard/MissingFeaturesTableCard";
+import CompleteFeaturesTableCard from "../components/dashboard/CompleteFeaturesTableCard";
 import RecommendationTableCard from "../components/dashboard/RecommendationTableCard";
 import NextPageCard from "../components/dashboard/NextPageCard";
 
@@ -150,6 +151,8 @@ const DashboardPage: React.FC = () => {
                     </div>
                     {/* Missing Features Table */}
                     <MissingFeaturesTableCard onInfoClick={handleInfoClick} />
+                    {/* Complete Features Table */}
+                    <CompleteFeaturesTableCard onInfoClick={handleInfoClick} />
                     {/* Recommendation Table */}
                     <RecommendationTableCard onInfoClick={handleInfoClick} />
                     {/* Full Width Card */}
