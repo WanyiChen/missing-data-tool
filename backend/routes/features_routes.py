@@ -66,6 +66,72 @@ def get_features_table(request: Request, page: int = 0, limit: int = 10):
             content={"success": False, "message": f"Error processing features: {str(e)}"}
         )
 
+@router.get("/api/complete-features-table")
+def get_complete_features_table(request: Request, page: int = 0, limit: int = 10):
+    """Get paginated list of features with complete data (no missing values)."""
+    df, error = get_uploaded_dataframe(request)
+    if error:
+        return error
+    
+    try:
+        # Get complete features directly from dataframe
+        complete_features = []
+        
+        for column in df.columns:
+            try:
+                # Calculate missing data statistics
+                number_missing = df[column].isnull().sum()
+                
+                # Only include features with no missing data
+                if number_missing == 0:
+                    total_rows = len(df)
+                    percentage_missing = 0.0
+                    
+                    # Auto-detect data type based on pandas dtype
+                    original_dtype = str(df[column].dtype)
+                    data_type = "N" if df[column].dtype in ['int64', 'float64', 'int32', 'float32'] else "C"
+                    
+                    # Create feature dict in same format as missing features endpoint
+                    feature_dict = {
+                        "feature_name": column,
+                        "data_type": data_type,
+                        "number_missing": int(number_missing),
+                        "percentage_missing": percentage_missing,
+                    }
+                    
+                    complete_features.append(feature_dict)
+                    
+            except Exception as column_error:
+                # Skip columns that cause errors
+                continue
+        
+        # Sort features alphabetically by name for consistent ordering
+        complete_features.sort(key=lambda x: x["feature_name"])
+        
+        # Calculate pagination
+        total_features = len(complete_features)
+        start_idx = page * limit
+        end_idx = start_idx + limit
+        paginated_features = complete_features[start_idx:end_idx]
+        
+        return {
+            "success": True,
+            "features": paginated_features,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total_features,
+                "total_pages": (total_features + limit - 1) // limit,
+                "has_next": end_idx < total_features,
+                "has_prev": page > 0
+            }
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500, 
+            content={"success": False, "message": f"Error processing complete features: {str(e)}"}
+        )
+
 @router.get("/api/feature-details/{feature_name}")
 def get_feature_details(
     request: Request, 
