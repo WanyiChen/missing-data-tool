@@ -41,7 +41,9 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
     const [isExpanded, setIsExpanded] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [errorType, setErrorType] = useState<string | null>(null);
     const [features, setFeatures] = useState<CompleteFeatureData[]>([]);
+    const [retryCount, setRetryCount] = useState(0);
 
     // Data type dropdown states
     const [openDataTypeDropdown, setOpenDataTypeDropdown] = useState<
@@ -142,44 +144,54 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
     }, []);
 
     const toggleDataTypeFilterDropdown = (event?: React.MouseEvent) => {
-        if (openDataTypeFilterDropdown) {
-            closeDataTypeFilterDropdown();
-        } else {
-            if (event) {
-                const rect = event.currentTarget.getBoundingClientRect();
-                setDataTypeFilterPosition({
-                    x: rect.left + rect.width / 2,
-                    y: rect.bottom + 5,
-                });
-                setDataTypeFilterButtonPosition({
-                    x: rect.left + rect.width / 2,
-                    y: rect.top,
-                    width: rect.width,
-                    height: rect.height,
-                });
+        try {
+            if (openDataTypeFilterDropdown) {
+                closeDataTypeFilterDropdown();
+            } else {
+                if (event) {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setDataTypeFilterPosition({
+                        x: rect.left + rect.width / 2,
+                        y: rect.bottom + 5,
+                    });
+                    setDataTypeFilterButtonPosition({
+                        x: rect.left + rect.width / 2,
+                        y: rect.top,
+                        width: rect.width,
+                        height: rect.height,
+                    });
+                }
+                setOpenDataTypeFilterDropdown(true);
             }
-            setOpenDataTypeFilterDropdown(true);
+        } catch (err) {
+            console.error("Error toggling data type filter dropdown:", err);
+            closeDataTypeFilterDropdown();
         }
     };
 
     const toggleCorrelationFilterDropdown = (event?: React.MouseEvent) => {
-        if (openCorrelationFilterDropdown) {
-            closeCorrelationFilterDropdown();
-        } else {
-            if (event) {
-                const rect = event.currentTarget.getBoundingClientRect();
-                setCorrelationFilterPosition({
-                    x: rect.left + rect.width / 2,
-                    y: rect.bottom + 5,
-                });
-                setCorrelationFilterButtonPosition({
-                    x: rect.left + rect.width / 2,
-                    y: rect.top,
-                    width: rect.width,
-                    height: rect.height,
-                });
+        try {
+            if (openCorrelationFilterDropdown) {
+                closeCorrelationFilterDropdown();
+            } else {
+                if (event) {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setCorrelationFilterPosition({
+                        x: rect.left + rect.width / 2,
+                        y: rect.bottom + 5,
+                    });
+                    setCorrelationFilterButtonPosition({
+                        x: rect.left + rect.width / 2,
+                        y: rect.top,
+                        width: rect.width,
+                        height: rect.height,
+                    });
+                }
+                setOpenCorrelationFilterDropdown(true);
             }
-            setOpenCorrelationFilterDropdown(true);
+        } catch (err) {
+            console.error("Error toggling correlation filter dropdown:", err);
+            closeCorrelationFilterDropdown();
         }
     };
 
@@ -195,23 +207,28 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
         featureName: string,
         event?: React.MouseEvent
     ) => {
-        if (openCorrelationDetailsDropdown === featureName) {
-            closeCorrelationDetailsDropdown();
-        } else {
-            if (event) {
-                const rect = event.currentTarget.getBoundingClientRect();
-                setCorrelationDetailsPosition({
-                    x: rect.left + rect.width / 2,
-                    y: rect.bottom + 5,
-                });
-                setCorrelationDetailsButtonPosition({
-                    x: rect.left + rect.width / 2,
-                    y: rect.top,
-                    width: rect.width,
-                    height: rect.height,
-                });
+        try {
+            if (openCorrelationDetailsDropdown === featureName) {
+                closeCorrelationDetailsDropdown();
+            } else {
+                if (event) {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setCorrelationDetailsPosition({
+                        x: rect.left + rect.width / 2,
+                        y: rect.bottom + 5,
+                    });
+                    setCorrelationDetailsButtonPosition({
+                        x: rect.left + rect.width / 2,
+                        y: rect.top,
+                        width: rect.width,
+                        height: rect.height,
+                    });
+                }
+                setOpenCorrelationDetailsDropdown(featureName);
             }
-            setOpenCorrelationDetailsDropdown(featureName);
+        } catch (err) {
+            console.error("Error toggling correlation details dropdown:", err);
+            closeCorrelationDetailsDropdown();
         }
     };
 
@@ -220,10 +237,16 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
         newType: "N" | "C"
     ) => {
         try {
-            const res = await axios.patch("/api/features-table", {
-                feature_name: featureName,
-                data_type: newType,
-            });
+            const res = await axios.patch(
+                "/api/features-table",
+                {
+                    feature_name: featureName,
+                    data_type: newType,
+                },
+                {
+                    timeout: 10000, // 10 second timeout
+                }
+            );
 
             if (res.data.success) {
                 // Update the local state
@@ -235,10 +258,34 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                     )
                 );
             } else {
-                console.error("Failed to update data type:", res.data.message);
+                const errorMsg =
+                    res.data.message || "Failed to update data type";
+                console.error("Failed to update data type:", errorMsg);
+                // Show user-friendly error message
+                onInfoClick?.(
+                    `Failed to update data type for ${featureName}: ${errorMsg}`
+                );
             }
         } catch (err: any) {
-            console.error("Error updating data type:", err);
+            const errorInfo = getErrorMessage(err);
+            console.error("Error updating data type:", {
+                feature: featureName,
+                newType,
+                error: err.message,
+                status: err.response?.status,
+            });
+
+            // Show user-friendly error message
+            let userMessage = `Failed to update data type for ${featureName}`;
+            if (errorInfo.type === "network" || errorInfo.type === "timeout") {
+                userMessage += ". Please check your connection and try again.";
+            } else if (errorInfo.type === "server_error") {
+                userMessage +=
+                    ". Server error occurred, please try again later.";
+            } else {
+                userMessage += `. ${errorInfo.message}`;
+            }
+            onInfoClick?.(userMessage);
         } finally {
             setOpenDataTypeDropdown(null);
             setDataTypeDropdownPosition(null);
@@ -249,18 +296,25 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
         featureName: string,
         event?: React.MouseEvent
     ) => {
-        if (openDataTypeDropdown === featureName) {
+        try {
+            if (openDataTypeDropdown === featureName) {
+                setOpenDataTypeDropdown(null);
+                setDataTypeDropdownPosition(null);
+            } else {
+                if (event) {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setDataTypeDropdownPosition({
+                        x: rect.left + rect.width / 2,
+                        y: rect.top - 10, // Position above the button
+                    });
+                }
+                setOpenDataTypeDropdown(featureName);
+            }
+        } catch (err) {
+            console.error("Error toggling data type dropdown:", err);
+            // Reset dropdown state on error
             setOpenDataTypeDropdown(null);
             setDataTypeDropdownPosition(null);
-        } else {
-            if (event) {
-                const rect = event.currentTarget.getBoundingClientRect();
-                setDataTypeDropdownPosition({
-                    x: rect.left + rect.width / 2,
-                    y: rect.top - 10, // Position above the button
-                });
-            }
-            setOpenDataTypeDropdown(featureName);
         }
     };
 
@@ -269,45 +323,152 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
     };
 
     const getDataTypeDisplay = (type: "N" | "C") => {
-        // Check if screen is small (you can adjust this breakpoint)
-        const isSmallScreen = window.innerWidth < 768;
-        return isSmallScreen ? type : getDataTypeLabel(type);
+        try {
+            // Check if screen is small (you can adjust this breakpoint)
+            const isSmallScreen = window.innerWidth < 768;
+            return isSmallScreen ? type : getDataTypeLabel(type);
+        } catch (err) {
+            console.warn("Error getting data type display:", err);
+            return type || "?";
+        }
+    };
+
+    const getErrorMessage = (error: any): { message: string; type: string } => {
+        // Network errors (no response received)
+        if (!error.response) {
+            if (error.code === "ECONNABORTED") {
+                return {
+                    message:
+                        "Request timed out. Please check your connection and try again.",
+                    type: "timeout",
+                };
+            }
+            if (error.code === "ERR_NETWORK") {
+                return {
+                    message:
+                        "Network error. Please check your internet connection.",
+                    type: "network",
+                };
+            }
+            return {
+                message:
+                    "Unable to connect to server. Please check your connection.",
+                type: "connection",
+            };
+        }
+
+        // HTTP status errors
+        const status = error.response.status;
+        switch (status) {
+            case 400:
+                return {
+                    message: error.response.data?.message || "Invalid request.",
+                    type: "validation",
+                };
+            case 404:
+                return {
+                    message: "Complete features data not found.",
+                    type: "not_found",
+                };
+            case 500:
+                return {
+                    message: "Server error. Please try again later.",
+                    type: "server_error",
+                };
+            case 503:
+                return {
+                    message:
+                        "Service temporarily unavailable. Please try again in a moment.",
+                    type: "service_unavailable",
+                };
+            default:
+                return {
+                    message:
+                        error.response.data?.message ||
+                        "An unexpected error occurred.",
+                    type: "unknown",
+                };
+        }
+    };
+
+    const fetchFeaturesData = async (isRetry: boolean = false) => {
+        if (!isRetry) {
+            setLoading(true);
+            setError(null);
+            setErrorType(null);
+        }
+
+        try {
+            const res = await axios.get("/api/complete-features-table", {
+                timeout: 30000, // 30 second timeout
+                headers: {
+                    "Cache-Control": "no-cache",
+                },
+            });
+
+            if (res.data.success) {
+                // Initialize features with loading states
+                const featuresWithLoading = res.data.features.map(
+                    (feature: CompleteFeatureData) => ({
+                        ...feature,
+                        isLoadingCorrelation: true,
+                    })
+                );
+                setFeatures(featuresWithLoading);
+                setError(null);
+                setErrorType(null);
+                setRetryCount(0);
+
+                // Start loading detailed analysis for each feature
+                featuresWithLoading.forEach((feature: CompleteFeatureData) => {
+                    loadFeatureAnalysis(feature.feature_name);
+                });
+            } else {
+                const errorMsg =
+                    res.data.message ||
+                    "Failed to fetch complete features data";
+                setError(errorMsg);
+                setErrorType("validation");
+            }
+        } catch (err: any) {
+            const errorInfo = getErrorMessage(err);
+            setError(errorInfo.message);
+            setErrorType(errorInfo.type);
+
+            console.error("Error fetching complete features data:", {
+                message: err.message,
+                status: err.response?.status,
+                data: err.response?.data,
+                retryCount: retryCount,
+            });
+
+            // Auto-retry for certain error types (max 2 retries)
+            if (
+                retryCount < 2 &&
+                ["timeout", "network", "service_unavailable"].includes(
+                    errorInfo.type
+                )
+            ) {
+                setTimeout(() => {
+                    setRetryCount((prev) => prev + 1);
+                    fetchFeaturesData(true);
+                }, Math.pow(2, retryCount) * 1000); // Exponential backoff: 1s, 2s
+            } else if (errorInfo.type === "server_error" && retryCount >= 2) {
+                // If server is completely down after retries, show degraded mode message
+                setError(
+                    "Server is currently unavailable. Some features may not work properly."
+                );
+                setErrorType("degraded");
+            }
+        } finally {
+            if (!isRetry) {
+                setLoading(false);
+            }
+        }
     };
 
     // Load basic feature data
     useEffect(() => {
-        const fetchFeaturesData = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const res = await axios.get("/api/complete-features-table");
-                if (res.data.success) {
-                    // Initialize features with loading states
-                    const featuresWithLoading = res.data.features.map(
-                        (feature: CompleteFeatureData) => ({
-                            ...feature,
-                            isLoadingCorrelation: true,
-                        })
-                    );
-                    setFeatures(featuresWithLoading);
-
-                    // Start loading detailed analysis for each feature
-                    featuresWithLoading.forEach(
-                        (feature: CompleteFeatureData) => {
-                            loadFeatureAnalysis(feature.feature_name);
-                        }
-                    );
-                } else {
-                    setError(res.data.message || "Failed to fetch data");
-                }
-            } catch (err: any) {
-                setError(
-                    err.message || "An error occurred while fetching data"
-                );
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchFeaturesData();
     }, []);
 
@@ -325,7 +486,10 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
     ]);
 
     // Load detailed analysis for a specific feature
-    const loadFeatureAnalysis = async (featureName: string) => {
+    const loadFeatureAnalysis = async (
+        featureName: string,
+        retryAttempt: number = 0
+    ) => {
         try {
             const params = new URLSearchParams({
                 pearson_threshold:
@@ -339,7 +503,10 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
             const res = await axios.get(
                 `/api/feature-details/${encodeURIComponent(
                     featureName
-                )}?${params}`
+                )}?${params}`,
+                {
+                    timeout: 15000, // 15 second timeout for individual feature analysis
+                }
             );
             if (res.data.success) {
                 setFeatures((prevFeatures: CompleteFeatureData[]) =>
@@ -359,6 +526,10 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                     )
                 );
             } else {
+                console.warn(
+                    `Failed to load analysis for ${featureName}:`,
+                    res.data.message
+                );
                 // Mark as loaded even if failed to prevent infinite loading
                 setFeatures((prevFeatures: CompleteFeatureData[]) =>
                     prevFeatures.map((feature: CompleteFeatureData) =>
@@ -372,7 +543,26 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                 );
             }
         } catch (err: any) {
-            console.error(`Error loading analysis for ${featureName}:`, err);
+            const errorInfo = getErrorMessage(err);
+            console.error(`Error loading analysis for ${featureName}:`, {
+                message: err.message,
+                status: err.response?.status,
+                attempt: retryAttempt + 1,
+            });
+
+            // Retry for network/timeout errors (max 1 retry per feature)
+            if (
+                retryAttempt < 1 &&
+                ["timeout", "network", "service_unavailable"].includes(
+                    errorInfo.type
+                )
+            ) {
+                setTimeout(() => {
+                    loadFeatureAnalysis(featureName, retryAttempt + 1);
+                }, 2000); // 2 second delay before retry
+                return;
+            }
+
             // Mark as loaded even if failed to prevent infinite loading
             setFeatures((prevFeatures: CompleteFeatureData[]) =>
                 prevFeatures.map((feature: CompleteFeatureData) =>
@@ -389,54 +579,98 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
 
     // Filter features based on data type filter and correlation filter
     const filteredFeatures = features.filter((feature: CompleteFeatureData) => {
-        // Data type filtering
-        const passesDataTypeFilter =
-            (feature.data_type === "N" && dataTypeFilter.numerical) ||
-            (feature.data_type === "C" && dataTypeFilter.categorical);
+        try {
+            // Data type filtering - handle missing data_type gracefully
+            if (!feature.data_type) {
+                console.warn(
+                    `Feature ${feature.feature_name} has no data_type, skipping`
+                );
+                return false;
+            }
 
-        if (!passesDataTypeFilter) return false;
+            const passesDataTypeFilter =
+                (feature.data_type === "N" && dataTypeFilter.numerical) ||
+                (feature.data_type === "C" && dataTypeFilter.categorical);
 
-        // Correlation filtering
-        const hasCorrelation =
-            feature.correlated_features &&
-            feature.correlated_features.length > 0;
-        const correlationPassesThreshold =
-            hasCorrelation &&
-            (() => {
-                // Check if any correlation meets the thresholds
-                return feature.correlated_features!.some((correlation) => {
-                    switch (correlation.correlation_type) {
-                        case "r":
-                            return (
-                                Math.abs(correlation.correlation_value) >=
-                                correlationFilter.pearsonThreshold
-                            );
-                        case "V":
-                            return (
-                                correlation.correlation_value >=
-                                correlationFilter.cramerVThreshold
-                            );
-                        case "η":
-                            return (
-                                correlation.correlation_value >=
-                                correlationFilter.etaThreshold
-                            );
-                        default:
-                            return false;
+            if (!passesDataTypeFilter) return false;
+
+            // Correlation filtering - handle cases where correlation data is missing or loading
+            const hasCorrelation =
+                feature.correlated_features &&
+                Array.isArray(feature.correlated_features) &&
+                feature.correlated_features.length > 0;
+
+            // If still loading correlation data, show the feature
+            if (feature.isLoadingCorrelation) {
+                return true;
+            }
+
+            const correlationPassesThreshold =
+                hasCorrelation &&
+                (() => {
+                    try {
+                        // Check if any correlation meets the thresholds
+                        return feature.correlated_features!.some(
+                            (correlation) => {
+                                if (
+                                    !correlation ||
+                                    typeof correlation.correlation_value !==
+                                        "number"
+                                ) {
+                                    return false;
+                                }
+
+                                switch (correlation.correlation_type) {
+                                    case "r":
+                                        return (
+                                            Math.abs(
+                                                correlation.correlation_value
+                                            ) >=
+                                            correlationFilter.pearsonThreshold
+                                        );
+                                    case "V":
+                                        return (
+                                            correlation.correlation_value >=
+                                            correlationFilter.cramerVThreshold
+                                        );
+                                    case "η":
+                                        return (
+                                            correlation.correlation_value >=
+                                            correlationFilter.etaThreshold
+                                        );
+                                    default:
+                                        return false;
+                                }
+                            }
+                        );
+                    } catch (err) {
+                        console.warn(
+                            `Error processing correlations for ${feature.feature_name}:`,
+                            err
+                        );
+                        return false;
                     }
-                });
-            })();
+                })();
 
-        const shouldShowCorrelations =
-            correlationFilter.correlations && correlationPassesThreshold;
-        const shouldShowNoCorrelations =
-            correlationFilter.noCorrelations && !hasCorrelation;
+            const shouldShowCorrelations =
+                correlationFilter.correlations && correlationPassesThreshold;
+            const shouldShowNoCorrelations =
+                correlationFilter.noCorrelations &&
+                (!hasCorrelation || feature.correlated_features === undefined);
 
-        return shouldShowCorrelations || shouldShowNoCorrelations;
+            return shouldShowCorrelations || shouldShowNoCorrelations;
+        } catch (err) {
+            console.error(
+                `Error filtering feature ${feature.feature_name}:`,
+                err
+            );
+            // In case of error, include the feature to avoid hiding data
+            return true;
+        }
     });
 
     const currentFeature = features.find(
-        (f: CompleteFeatureData) => f.feature_name === openDataTypeDropdown
+        (f: CompleteFeatureData) => f && f.feature_name === openDataTypeDropdown
     );
 
     return (
@@ -464,14 +698,87 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
             >
                 {loading ? (
                     <div className="text-center text-gray-400 py-8">
-                        Loading...
+                        <div className="flex items-center justify-center gap-2">
+                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+                            <span>Loading complete features...</span>
+                        </div>
+                        {retryCount > 0 && (
+                            <div className="text-xs text-gray-500 mt-2">
+                                Retry attempt {retryCount} of 2
+                            </div>
+                        )}
                     </div>
                 ) : error ? (
-                    <div className="text-center text-red-500 py-8">{error}</div>
+                    <div className="text-center py-8">
+                        <div className="text-red-500 mb-4">
+                            <div className="font-medium mb-2">
+                                {errorType === "validation"
+                                    ? "Data Not Available"
+                                    : errorType === "network" ||
+                                      errorType === "connection"
+                                    ? "Connection Error"
+                                    : errorType === "timeout"
+                                    ? "Request Timeout"
+                                    : errorType === "not_found"
+                                    ? "Data Not Found"
+                                    : errorType === "server_error"
+                                    ? "Server Error"
+                                    : errorType === "service_unavailable"
+                                    ? "Service Unavailable"
+                                    : errorType === "degraded"
+                                    ? "Limited Functionality"
+                                    : "Error"}
+                            </div>
+                            <div className="text-sm">{error}</div>
+                        </div>
+
+                        {/* Retry button for recoverable errors */}
+                        {[
+                            "network",
+                            "connection",
+                            "timeout",
+                            "server_error",
+                            "service_unavailable",
+                        ].includes(errorType || "") && (
+                            <button
+                                onClick={() => fetchFeaturesData()}
+                                disabled={loading}
+                                className="px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                {loading ? "Retrying..." : "Try Again"}
+                            </button>
+                        )}
+
+                        {/* Additional help for validation errors */}
+                        {errorType === "validation" && (
+                            <div className="text-xs text-gray-500 mt-2">
+                                Please ensure your dataset is properly loaded
+                                and contains valid data.
+                            </div>
+                        )}
+
+                        {retryCount > 0 && (
+                            <div className="text-xs text-gray-500 mt-2">
+                                Retry attempt {retryCount} of 2
+                            </div>
+                        )}
+                    </div>
                 ) : features.length === 0 ? (
                     <div className="text-center text-gray-400 py-8">
-                        No complete features found. All features in your dataset
-                        have missing values.
+                        <div className="mb-2">No complete features found</div>
+                        <div className="text-sm">
+                            All features in your dataset have missing values.
+                        </div>
+                    </div>
+                ) : filteredFeatures.length === 0 ? (
+                    <div className="text-center text-gray-400 py-8">
+                        <div className="mb-2">
+                            No features match the current filters
+                        </div>
+                        <div className="text-sm">
+                            Try adjusting your data type or correlation filters
+                            to see more results.
+                        </div>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
@@ -576,32 +883,34 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                                                     <div className="flex items-center justify-center">
                                                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
                                                         <span className="ml-2 text-xs text-gray-500">
-                                                            Loading...
+                                                            Analyzing
+                                                            correlations...
                                                         </span>
                                                     </div>
                                                 ) : feature.most_correlated_with ? (
                                                     <div className="flex items-center gap-1 justify-center">
                                                         <div className="flex items-center gap-1">
                                                             <span className="text-gray-600">
-                                                                {
-                                                                    feature
-                                                                        .most_correlated_with
-                                                                        .feature_name
-                                                                }
+                                                                {feature
+                                                                    .most_correlated_with
+                                                                    .feature_name ||
+                                                                    "Unknown"}
                                                             </span>
                                                             <span className="text-xs text-gray-500">
                                                                 (
-                                                                {
-                                                                    feature
-                                                                        .most_correlated_with
-                                                                        .correlation_type
-                                                                }{" "}
+                                                                {feature
+                                                                    .most_correlated_with
+                                                                    .correlation_type ||
+                                                                    "?"}{" "}
                                                                 ={" "}
-                                                                {
-                                                                    feature
-                                                                        .most_correlated_with
-                                                                        .correlation_value
-                                                                }
+                                                                {typeof feature
+                                                                    .most_correlated_with
+                                                                    .correlation_value ===
+                                                                "number"
+                                                                    ? feature.most_correlated_with.correlation_value.toFixed(
+                                                                          3
+                                                                      )
+                                                                    : "N/A"}
                                                                 )
                                                             </span>
                                                         </div>
@@ -625,6 +934,12 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                                                                 </button>
                                                             )}
                                                     </div>
+                                                ) : feature.most_correlated_with ===
+                                                      undefined &&
+                                                  !feature.isLoadingCorrelation ? (
+                                                    <span className="text-gray-400 text-xs">
+                                                        Analysis unavailable
+                                                    </span>
                                                 ) : (
                                                     <span className="text-gray-400">
                                                         --
