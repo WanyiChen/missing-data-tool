@@ -39,14 +39,15 @@ def get_features_table(request: Request, page: int = 0, limit: int = 10):
         if not FEATURE_CACHE:
             initialize_feature_cache(df)
         
-        # Get all features from cache
+        # Get all features from cache and filter for those with missing data
         all_features = get_all_features_from_cache()
+        missing_features = [feature for feature in all_features if feature.number_missing > 0]
         
         # Calculate pagination
-        total_features = len(all_features)
+        total_features = len(missing_features)
         start_idx = page * limit
         end_idx = start_idx + limit
-        paginated_features = [feature.to_basic_dict() for feature in all_features[start_idx:end_idx]]
+        paginated_features = [feature.to_basic_dict() for feature in missing_features[start_idx:end_idx]]
         
         return {
             "success": True,
@@ -66,13 +67,56 @@ def get_features_table(request: Request, page: int = 0, limit: int = 10):
             content={"success": False, "message": f"Error processing features: {str(e)}"}
         )
 
+@router.get("/api/complete-features-table")
+def get_complete_features_table(request: Request, page: int = 0, limit: int = 10):
+    """Get paginated list of features with complete data (no missing values)."""
+    df, error = get_uploaded_dataframe(request)
+    if error:
+        return error
+    
+    try:
+        # Initialize cache if empty
+        if not FEATURE_CACHE:
+            initialize_feature_cache(df)
+        
+        # Get all features from cache and filter for those with no missing data
+        all_features = get_all_features_from_cache()
+        complete_features = [feature for feature in all_features if feature.number_missing == 0]
+        
+        # Sort features alphabetically by name for consistent ordering
+        complete_features.sort(key=lambda x: x.name)
+        
+        # Calculate pagination
+        total_features = len(complete_features)
+        start_idx = page * limit
+        end_idx = start_idx + limit
+        paginated_features = [feature.to_basic_dict() for feature in complete_features[start_idx:end_idx]]
+        
+        return {
+            "success": True,
+            "features": paginated_features,
+            "pagination": {
+                "page": page,
+                "limit": limit,
+                "total": total_features,
+                "total_pages": (total_features + limit - 1) // limit,
+                "has_next": end_idx < total_features,
+                "has_prev": page > 0
+            }
+        }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500, 
+            content={"success": False, "message": f"Error processing complete features: {str(e)}"}
+        )
+
 @router.get("/api/feature-details/{feature_name}")
 def get_feature_details(
     request: Request, 
     feature_name: str,
     pearson_threshold: float = 0.7,
     cramer_v_threshold: float = 0.7,
-    eta_squared_threshold: float = 0.7
+    eta_threshold: float = 0.7
 ):
     """Get complete details for a specific feature including correlation and informative missingness."""
     df, error = get_uploaded_dataframe(request)
@@ -96,12 +140,12 @@ def get_feature_details(
         current_thresholds = {
             "pearson_threshold": pearson_threshold,
             "cramer_v_threshold": cramer_v_threshold,
-            "eta_squared_threshold": eta_squared_threshold
+            "eta_threshold": eta_threshold
         }
         
         if feature.should_recalculate_correlations(current_thresholds):
             correlations_data = calculate_feature_correlations_with_thresholds(
-                df, feature_name, pearson_threshold, cramer_v_threshold, eta_squared_threshold
+                df, feature_name, pearson_threshold, cramer_v_threshold, eta_threshold
             )
             feature.set_correlated_features_with_thresholds(correlations_data, current_thresholds)
         
