@@ -190,6 +190,8 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
         correlationFilter.etaThreshold,
     ]);
 
+
+
     // Load detailed analysis for a specific feature
     const loadFeatureAnalysis = async (featureName: string) => {
         try {
@@ -277,6 +279,15 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                             : feature
                     )
                 );
+
+             // Reload correlations for ALL features
+            features.forEach((feature: FeatureData) => {
+                loadFeatureAnalysis(feature.feature_name);
+            });
+
+            // Notify other components
+            window.dispatchEvent(new CustomEvent('dataTypeChanged'));
+        
             } else {
                 console.error("Failed to update data type:", res.data.message);
             }
@@ -485,6 +496,20 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
     const handleCorrelationFilterChange = (newFilter: CorrelationFilter) => {
         setCorrelationFilter(newFilter);
     };
+
+    // Listen for data type changes from other components
+    useEffect(() => {
+        const handleDataTypeChanged = () => {
+            // Reload correlations for all features when any data type changes
+            features.forEach((feature: FeatureData) => {
+                loadFeatureAnalysis(feature.feature_name);
+            });
+        };
+
+        window.addEventListener('dataTypeChanged', handleDataTypeChanged);
+        return () => window.removeEventListener('dataTypeChanged', handleDataTypeChanged);
+    }, [features]);
+
 
     // Filter features based on data type filter and correlation filter
     const filteredFeatures = features.filter((feature: FeatureData) => {

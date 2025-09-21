@@ -248,16 +248,41 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                 }
             );
 
+            // if (res.data.success) {
+            //     // Update the local state
+            //     setFeatures((prevFeatures: CompleteFeatureData[]) =>
+            //         prevFeatures.map((feature: CompleteFeatureData) =>
+            //             feature.feature_name === featureName
+            //                 ? { ...feature, data_type: newType }
+            //                 : feature
+            //         )
+            //     );
+            // }
             if (res.data.success) {
-                // Update the local state
+                // Update state and trigger recalculation
                 setFeatures((prevFeatures: CompleteFeatureData[]) =>
                     prevFeatures.map((feature: CompleteFeatureData) =>
                         feature.feature_name === featureName
-                            ? { ...feature, data_type: newType }
+                            ? { 
+                                ...feature, 
+                                data_type: newType,
+                                isLoadingCorrelation: true,
+                                // isLoadingInformative: true,
+                                most_correlated_with: null,
+                                correlated_features: []
+                            }
                             : feature
                     )
                 );
-            } else {
+
+                features.forEach((feature: CompleteFeatureData) => {
+                loadFeatureAnalysis(feature.feature_name);
+            });
+
+                // Notify other components
+                window.dispatchEvent(new CustomEvent('dataTypeChanged'));
+            }
+            else {
                 const errorMsg =
                     res.data.message || "Failed to update data type";
                 console.error("Failed to update data type:", errorMsg);
@@ -672,6 +697,20 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
     const currentFeature = features.find(
         (f: CompleteFeatureData) => f && f.feature_name === openDataTypeDropdown
     );
+
+    // Listen for data type changes from other components
+    useEffect(() => {
+        const handleDataTypeChanged = () => {
+            // Reload correlations for all features when any data type changes
+            features.forEach((feature: CompleteFeatureData) => {
+                loadFeatureAnalysis(feature.feature_name);
+            });
+        };
+
+        window.addEventListener('dataTypeChanged', handleDataTypeChanged);
+        return () => window.removeEventListener('dataTypeChanged', handleDataTypeChanged);
+    }, [features]);
+
 
     return (
         <div className="rounded-2xl border bg-white shadow-sm p-6 w-full">
