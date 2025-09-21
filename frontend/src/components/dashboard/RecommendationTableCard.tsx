@@ -154,9 +154,19 @@ const RecommendationTableCard: React.FC<RecommendationTableCardProps> = ({
         }
     };
 
+    // useEffect(() => {
+    //     fetchRecommendations();
+    // }, []);
+
     useEffect(() => {
-        fetchRecommendations();
+        const handleDataTypeChange = () => {
+            fetchRecommendations();
+        };
+
+        window.addEventListener('dataTypeChanged', handleDataTypeChange);
+        return () => window.removeEventListener('dataTypeChanged', handleDataTypeChange);
     }, []);
+
 
     const formatFeatureList = (features: string[]): string => {
         if (features.length === 0) return "";

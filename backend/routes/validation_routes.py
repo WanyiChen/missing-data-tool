@@ -7,6 +7,9 @@ import pandas as pd
 import numpy as np
 import io
 import json
+from models.feature import FEATURE_CACHE
+
+
 
 __all__ = ["latest_uploaded_file", "latest_uploaded_filename", "df"]
 
@@ -55,7 +58,10 @@ async def validate_upload(request: Request, file: UploadFile = File(...)):
 
     # Create dataframe accordingly
     if has_feature_names:
-        df = pd.read_csv(io.BytesIO(contents))
+        if ext == ".csv":
+            df = pd.read_csv(io.BytesIO(contents))
+        else:
+            df = pd.read_excel(io.BytesIO(contents))
         title_row = df.columns.tolist()
         data_rows = df.head(10).values.tolist()
     else:
@@ -69,6 +75,10 @@ async def validate_upload(request: Request, file: UploadFile = File(...)):
     request.app.state.latest_uploaded_filename = filename
     request.app.state.df = df
     request.app.state.feature_names = has_feature_names
+
+    # Clear all caches for new dataset
+    FEATURE_CACHE.clear()
+
 
     # Convert numpy values for JSON
     def convert_numpy_values(obj):
@@ -128,6 +138,9 @@ async def update_feature_names(request: Request, featureNames: str = Form(...)):
     # Clear cached missing data mechanism since dataframe changed
     from routes.dashboard_routes import clear_missing_mechanism_cache
     clear_missing_mechanism_cache(request)
+
+    # Clear feature cache
+    FEATURE_CACHE.clear()
 
     title_row = df.columns.tolist()
     data_rows = df.head(10).values.tolist()
@@ -199,6 +212,9 @@ async def submit_feature_names(request: Request, featureNames: str = Form(...)):
     # Clear cached missing data mechanism since dataframe changed
     from routes.dashboard_routes import clear_missing_mechanism_cache
     clear_missing_mechanism_cache(request)
+
+    # Clear feature cache
+    FEATURE_CACHE.clear()
     
     return {"success": True, "message": "Feature names configuration saved successfully."}
 

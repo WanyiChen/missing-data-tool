@@ -101,8 +101,9 @@ class Feature:
         # Only update if the value is actually changing
         if self._data_type != value:
             self._data_type = value
-            # Clear correlations since data type change might affect correlation calculations
-            self.clear_correlations()
+            # Clear correlations for ALL features since data type change affects all correlation calculations
+            for feature in FEATURE_CACHE.values():
+                feature.clear_correlations()
             # Clear informative missingness since it might be affected by data type
             self._informative_calculated = False
             self._informative_missingness = {"is_informative": False, "p_value": 1.0}
@@ -110,7 +111,8 @@ class Feature:
             self._recommendation = None
             self._recommendation_calculated = False
             self._last_updated = datetime.now()
-    
+
+
     def set_correlated_features(self, correlations: List[Dict]):
         """Set correlated features and mark as calculated."""
         self._correlated_features = correlations
@@ -416,7 +418,11 @@ def calculate_feature_correlations_with_thresholds(
             if df[feature_name].isnull().all() or df[col].isnull().all():
                 continue
                 
-            if df[feature_name].dtype in ['int64', 'float64'] and df[col].dtype in ['int64', 'float64']:
+            feature_type = FEATURE_CACHE.get(feature_name, type('obj', (object,), {'data_type': 'C'})).data_type
+            col_type = FEATURE_CACHE.get(col, type('obj', (object,), {'data_type': 'C'})).data_type
+            if feature_type == 'N' and col_type == 'N':
+
+            # if df[feature_name].dtype in ['int64', 'float64'] and df[col].dtype in ['int64', 'float64']:
                 # Both features are numerical - use Pearson correlation
                 valid_mask = ~(df[feature_name].isnull() | df[col].isnull())
                 if valid_mask.sum() > 10:  # Need sufficient data
@@ -431,11 +437,18 @@ def calculate_feature_correlations_with_thresholds(
                             "correlation_type": "r",
                             "p_value": p_value
                         })
-            elif df[feature_name].dtype in ['int64', 'float64'] or df[col].dtype in ['int64', 'float64']:
+
+            elif feature_type == 'N' or col_type == 'N':
+
+            # elif df[feature_name].dtype in ['int64', 'float64'] or df[col].dtype in ['int64', 'float64']:
                 # One numerical, one categorical - use Eta-squared
-                numerical_col = df[feature_name] if df[feature_name].dtype in ['int64', 'float64'] else df[col]
-                categorical_col = df[col] if df[col].dtype not in ['int64', 'float64'] else df[feature_name]
+                # numerical_col = df[feature_name] if df[feature_name].dtype in ['int64', 'float64'] else df[col]
+                # categorical_col = df[col] if df[col].dtype not in ['int64', 'float64'] else df[feature_name]
                 
+                numerical_col = df[feature_name] if feature_type == 'N' else df[col]
+                categorical_col = df[feature_name] if feature_type == 'C' else df[col]
+
+
                 eta, p_value = calculate_eta(categorical_col, numerical_col)
                 if eta is not None and not np.isnan(eta) and eta >= eta_threshold:
                     correlations.append({
@@ -463,6 +476,10 @@ def calculate_feature_correlations_with_thresholds(
                                     "p_value": p_value
                                 })
         
+
+        # Add this to the calculate_feature_correlations_with_thresholds function
+        print(f"Feature {feature_name}: dtype={df[feature_name].dtype}, cached_type={FEATURE_CACHE.get(feature_name, {}).data_type}")
+
         # Sort by absolute correlation value (descending)
         correlations.sort(key=lambda x: abs(x["correlation_value"]), reverse=True)
         
