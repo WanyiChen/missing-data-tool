@@ -422,7 +422,6 @@ def calculate_feature_correlations_with_thresholds(
             col_type = FEATURE_CACHE.get(col, type('obj', (object,), {'data_type': 'C'})).data_type
             if feature_type == 'N' and col_type == 'N':
 
-            # if df[feature_name].dtype in ['int64', 'float64'] and df[col].dtype in ['int64', 'float64']:
                 # Both features are numerical - use Pearson correlation
                 valid_mask = ~(df[feature_name].isnull() | df[col].isnull())
                 if valid_mask.sum() > 10:  # Need sufficient data
@@ -439,12 +438,7 @@ def calculate_feature_correlations_with_thresholds(
                         })
 
             elif feature_type == 'N' or col_type == 'N':
-
-            # elif df[feature_name].dtype in ['int64', 'float64'] or df[col].dtype in ['int64', 'float64']:
                 # One numerical, one categorical - use Eta-squared
-                # numerical_col = df[feature_name] if df[feature_name].dtype in ['int64', 'float64'] else df[col]
-                # categorical_col = df[col] if df[col].dtype not in ['int64', 'float64'] else df[feature_name]
-                
                 numerical_col = df[feature_name] if feature_type == 'N' else df[col]
                 categorical_col = df[feature_name] if feature_type == 'C' else df[col]
 
