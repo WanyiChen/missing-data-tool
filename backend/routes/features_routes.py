@@ -151,14 +151,42 @@ def get_feature_details(
         
         # Calculate informative missingness if not already calculated
         if not feature.informative_calculated:
-            informative_data = calculate_informative_missingness(df, feature_name)
-            feature.set_informative_missingness(informative_data)
+            try:
+                # Get target information from request app state
+                target_col = getattr(request.app.state, "target_feature", None)
+                target_type = getattr(request.app.state, "target_type", None)
+                
+                # Calculate informative missingness with target information
+                informative_data = calculate_informative_missingness(
+                    df, 
+                    feature_name,
+                    target_col=target_col,
+                    target_type=target_type
+                )
+                feature.set_informative_missingness(informative_data)
+            except Exception as inf_error:
+                # If informative missingness calculation fails, log it but don't fail the whole request
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error calculating informative missingness for {feature_name}: {str(inf_error)}")
+                import traceback
+                logger.error(traceback.format_exc())
+                # Set default values
+                feature.set_informative_missingness({
+                    "is_informative": False,
+                    "p_value": 1.0
+                })
         
         return {
             "success": True,
             **feature.to_dict()
         }
     except Exception as e:
+        import logging
+        import traceback
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in get_feature_details for {feature_name}: {str(e)}")
+        logger.error(traceback.format_exc())
         return JSONResponse(
             status_code=500, 
             content={"success": False, "message": f"Error analyzing feature {feature_name}: {str(e)}"}
