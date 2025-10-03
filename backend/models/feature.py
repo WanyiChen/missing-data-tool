@@ -579,7 +579,7 @@ def calculate_informative_missingness(
                 "p_value": 1.0
             }
         
-        # Run selective MIM analysis
+        # Run selective MIM 
         try:
             logger.info(f"Running selective MIM for feature {feature_name} with target {target_col} (type: {target_type})")
             results = run_selective_mim(temp_df, target_col, target_type, alpha=0.05)
@@ -594,7 +594,7 @@ def calculate_informative_missingness(
         
         # Extract result for this specific feature
         if results and len(results) > 0:
-            result = results[0]  # Should only have one result since we passed one feature
+            result = results[0] 
             logger.info(f"Informative missingness for {feature_name}: {result['is_informative']} (p={result['p_value']:.4f})")
             return {
                 "is_informative": result["is_informative"],
