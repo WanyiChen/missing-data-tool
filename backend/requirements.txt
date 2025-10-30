@@ -14,3 +14,4 @@ pytest
 python-multipart
 pyampute
 scipy
+statsmodels

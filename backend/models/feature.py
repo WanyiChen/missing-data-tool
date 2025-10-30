@@ -482,15 +482,140 @@ def calculate_feature_correlations_with_thresholds(
         print(f"Error calculating correlations for {feature_name}: {str(e)}")
         return []
 
-
+"""
 def calculate_informative_missingness(df: pd.DataFrame, feature_name: str) -> Dict:
-    """Calculate whether missingness of a feature is informative (placeholder implementation)."""
+    #Calculate whether missingness of a feature is informative (placeholder implementation).
     # TODO: Implement proper informative missingness calculation
     # For now, return placeholder values
     return {
         "is_informative": False,  # Placeholder
         "p_value": 1.0  # Placeholder
     }
+"""
+
+def calculate_informative_missingness(
+    df: pd.DataFrame, 
+    feature_name: str,
+    target_col: str = None,
+    target_type: str = None
+) -> Dict:
+    """
+    Calculate whether missingness of a feature is informative using selective MIM.
+    
+    Args:
+        df: DataFrame containing the data
+        feature_name: Name of the feature to analyze
+        target_col: Name of the target column (optional)
+        target_type: Type of target ('numerical' or 'categorical') (optional)
+    
+    Returns:
+        Dict with is_informative (bool) and p_value (float) fields
+    """
+    import logging
+    import traceback
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        logger.info(f"Starting informative missingness calculation for feature: {feature_name}")
+        
+        # Check if feature has missing data
+        if feature_name not in df.columns:
+            logger.error(f"Feature {feature_name} not found in dataframe")
+            return {
+                "is_informative": False,
+                "p_value": 1.0
+            }
+            
+        if df[feature_name].isnull().sum() == 0:
+            logger.debug(f"Feature {feature_name} has no missing values")
+            return {
+                "is_informative": False,
+                "p_value": 1.0
+            }
+        
+        # If no target specified, cannot calculate informative missingness
+        if not target_col or not target_type:
+            logger.debug(f"No target column specified for {feature_name}, returning default values")
+            return {
+                "is_informative": False,
+                "p_value": 1.0
+            }
+        
+        # Check if target column exists
+        if target_col not in df.columns:
+            logger.warning(f"Target column '{target_col}' not found in dataframe")
+            return {
+                "is_informative": False,
+                "p_value": 1.0
+            }
+        
+        # Check if target has missing values
+        if df[target_col].isnull().any():
+            logger.warning(f"Target column '{target_col}' has missing values, cannot calculate informative missingness reliably")
+            return {
+                "is_informative": False,
+                "p_value": 1.0
+            }
+        
+        # Import the selective MIM function
+        try:
+            from models.feature_missingness_bh_2 import run_selective_mim
+        except ImportError as ie:
+            logger.error(f"Failed to import run_selective_mim: {str(ie)}")
+            return {
+                "is_informative": False,
+                "p_value": 1.0
+            }
+        
+        # Create a temporary dataframe with just the feature and target
+        try:
+            temp_df = df[[feature_name, target_col]].copy()
+            logger.debug(f"Created temp dataframe with shape: {temp_df.shape}")
+        except Exception as df_error:
+            logger.error(f"Error creating temporary dataframe: {str(df_error)}")
+            return {
+                "is_informative": False,
+                "p_value": 1.0
+            }
+        
+        # Run selective MIM 
+        try:
+            logger.info(f"Running selective MIM for feature {feature_name} with target {target_col} (type: {target_type})")
+            results = run_selective_mim(temp_df, target_col, target_type, alpha=0.05)
+            logger.debug(f"Selective MIM returned {len(results) if results else 0} results")
+        except Exception as mim_error:
+            logger.error(f"Error running selective MIM: {str(mim_error)}")
+            logger.error(traceback.format_exc())
+            return {
+                "is_informative": False,
+                "p_value": 1.0
+            }
+        
+        # Extract result for this specific feature
+        if results and len(results) > 0:
+            result = results[0] 
+            logger.info(f"Informative missingness for {feature_name}: {result['is_informative']} (p={result['p_value']:.4f})")
+            return {
+                "is_informative": result["is_informative"],
+                "p_value": result["p_value"]
+            }
+        else:
+            logger.warning(f"No results returned from selective MIM for {feature_name}")
+            return {
+                "is_informative": False,
+                "p_value": 1.0
+            }
+        
+    except Exception as e:
+        logger.error(f"Unexpected error calculating informative missingness for {feature_name}: {str(e)}")
+        logger.error(traceback.format_exc())
+        return {
+            "is_informative": False,
+            "p_value": 1.0
+        }
+
+
 
 
 def calculate_all_recommendations(dataset_mechanism: str = None) -> Dict[str, Dict]:
