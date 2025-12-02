@@ -33,12 +33,15 @@ interface CompleteFeatureData {
 
 interface CompleteFeaturesTableCardProps {
     onInfoClick: (message: string) => void;
+    defaultExpanded?: boolean;
+
 }
 
 const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
     onInfoClick,
+    defaultExpanded,
 }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(defaultExpanded || false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [errorType, setErrorType] = useState<string | null>(null);

@@ -1,0 +1,6 @@
+DONE: Blanks and NA implementation (or User defined missing data tag)
+
+DONE: Check read_csv function documentation (header=NONE)
+
+DONE: Check for multiple user define tags for missing data.
+

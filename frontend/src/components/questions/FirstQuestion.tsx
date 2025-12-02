@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import styles from "../common/Button.module.css";
 
@@ -16,6 +17,7 @@ const FirstQuestion: React.FC<FirstQuestionProps> = ({
     onError,
 }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const navigate = useNavigate();
     const [datasetPreview, setDatasetPreview] = useState<{
         title_row: string[];
         data_rows: any[][];
@@ -139,13 +141,13 @@ const FirstQuestion: React.FC<FirstQuestionProps> = ({
                     <div className="text-gray-500 text-sm mb-2">
                         Dataset preview (first 10 rows)
                     </div>
-                    <div className="overflow-x-auto border bg-white shadow max-w-full">
+                    <div className="overflow-x-auto border bg-white shadow max-w-fit">
                         {isLoadingPreview ? (
                             <div className="p-8 text-center text-gray-500">
                                 Loading dataset preview...
                             </div>
                         ) : datasetPreview ? (
-                            <table className="min-w-[600px] border-collapse">
+                            <table className="min-w-fit border-collapse ">
                                 <thead>
                                     <tr>
                                         {datasetPreview.title_row.map(
@@ -200,7 +202,15 @@ const FirstQuestion: React.FC<FirstQuestionProps> = ({
                 <div className="text-xs text-red-500">
                     Missing data is shown by red boxes.
                 </div>
-                <div className="flex justify-end">
+                <div className="flex justify-between mt-8">
+                    <button
+                        className={`${styles.button} ${styles.secondary}`}
+                        onClick={() => navigate("/")}
+                        disabled={isSubmitting}
+                        style={{ minWidth: 80 }}
+                    >
+                        ← Back
+                    </button>
                     <button
                         className={`${styles.button} ${styles.primary} ml-2`}
                         disabled={featureNames === null || isSubmitting}

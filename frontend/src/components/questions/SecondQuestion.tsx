@@ -447,7 +447,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                                 checked={missingDataOptions.blanks}
                                 onChange={() => handleCheckbox("blanks")}
                             />
-                            <span>Blanks {detectedMissing.blanks ? "(Auto-Detected)" : ""}</span>
+                            <span>Blanks {detectedMissing?.blanks ? "(Auto-Detected)" : ""}</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -455,7 +455,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                                 checked={missingDataOptions.na}
                                 onChange={() => handleCheckbox("na")}
                             />
-                            <span>N/A {detectedMissing.na ? "(Auto-Detected)" : ""}</span>
+                            <span>N/A {detectedMissing?.na ? "(Auto-Detected)" : ""}</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -483,13 +483,13 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                     <div className="text-gray-500 text-sm mb-2">
                         Dataset preview (first 10 rows)
                     </div>
-                    <div className="overflow-x-auto border bg-white shadow max-w-full">
+                    <div className="overflow-x-auto border bg-white shadow max-w-fit">
                         {isLoadingPreview && isInitialPreviewLoad ? (
                             <div className="p-8 text-center text-gray-500">
                                 Loading dataset preview...
                             </div>
                         ) : datasetPreview ? (
-                            <table className="min-w-[600px] border-collapse">
+                            <table className="min-w-fit border-collapse">
                                 <thead>
                                     <tr>
                                         {datasetPreview.title_row.map(
