@@ -312,13 +312,13 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                     <div className="text-gray-500 text-sm mb-2">
                         Dataset preview (first 10 rows)
                     </div>
-                    <div className="overflow-x-auto border bg-white shadow max-w-full">
+                    <div className="overflow-x-auto border bg-white shadow max-w-fit">
                         {isLoadingPreview ? (
                             <div className="p-8 text-center text-gray-500">
                                 Loading dataset preview...
                             </div>
                         ) : datasetPreview ? (
-                            <table className="min-w-[600px] border-collapse">
+                            <table className="min-w-fit border-collapse">
                                 <thead>
                                     <tr>
                                         {datasetPreview.title_row.map(

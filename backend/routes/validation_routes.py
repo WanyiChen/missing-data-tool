@@ -11,6 +11,7 @@ from models.feature import FEATURE_CACHE
 
 
 
+
 __all__ = ["latest_uploaded_file", "latest_uploaded_filename", "df"]
 
 router = APIRouter()
@@ -42,7 +43,13 @@ async def validate_upload(request: Request, file: UploadFile = File(...)):
     # Use pandas to check for actual data
     try:
         if ext == ".csv":
-            df_raw = pd.read_csv(io.BytesIO(contents), header=None)
+            # Detect separator for CSV files
+            sample = contents[:1024].decode('utf-8', errors='ignore')
+            if ';' in sample and sample.count(';') > sample.count(','):
+                sep = ';'
+            else:
+                sep = ','
+            df_raw = pd.read_csv(io.BytesIO(contents), header=None, sep=sep, low_memory=False)
         else:
             df_raw = pd.read_excel(io.BytesIO(contents), header=None)
     except Exception:
@@ -116,7 +123,7 @@ async def update_feature_names(request: Request, featureNames: str = Form(...)):
     try:
         if ext == ".csv":
             if featureNames == "false":
-                df = pd.read_csv(io.BytesIO(file), header=None)
+                df = pd.read_csv(io.BytesIO(file))
                 df.columns = [f"Feature {i+1}" for i in range(len(df.columns))]
             else:
                 df = pd.read_csv(io.BytesIO(file))
@@ -252,9 +259,14 @@ async def submit_missing_data_options(request: Request, missingDataOptions: str 
     if other_text and missing_data_options["other"]:
         for text in other_text.split(","):
             text = text.strip()
-            if text.isnumeric():
-                df_processed.replace(float(text), np.nan, inplace=True)
-            else:
+            try:
+                # Try to convert to float to detect numeric values (including decimals)
+                numeric_value = float(text)
+                # Replace both numeric and string representations
+                df_processed.replace(numeric_value, np.nan, inplace=True)
+                df_processed.replace(text, np.nan, inplace=True)
+            except ValueError:
+                # If conversion fails, treat as text
                 df_processed.replace(text, np.nan, inplace=True)
     
     # Store the processed dataframe
@@ -290,7 +302,13 @@ async def submit_target_feature(request: Request, targetFeature: str = Form(...)
                 df_encoded[col] = le.fit_transform(df_encoded[col].astype(str))
         
         # Ensure label encoding doesn't replace NaN values
-        df_encoded.where(~df.isna(), df, inplace=True)
+        for col in df_encoded.columns:
+            mask = df[col].isna()
+            if mask.any():
+                # Convert to nullable integer type if needed
+                if df_encoded[col].dtype in ['int64', 'int32']:
+                    df_encoded[col] = df_encoded[col].astype('Int64')
+                df_encoded.loc[mask, col] = pd.NA
         
         # Store the final processed dataframe
         request.app.state.df = df_encoded
@@ -325,7 +343,13 @@ async def submit_target_feature(request: Request, targetFeature: str = Form(...)
             df_encoded[col] = le.fit_transform(df_encoded[col].astype(str))
     
     # Ensure label encoding doesn't replace NaN values
-    df_encoded.where(~df.isna(), df, inplace=True)
+    for col in df_encoded.columns:
+        mask = df[col].isna()
+        if mask.any():
+            # Convert to nullable integer type if needed
+            if df_encoded[col].dtype in ['int64', 'int32']:
+                df_encoded[col] = df_encoded[col].astype('Int64')
+            df_encoded.loc[mask, col] = pd.NA
     
     # Store the final processed dataframe
     request.app.state.df = df_encoded
@@ -336,11 +360,14 @@ async def submit_target_feature(request: Request, targetFeature: str = Form(...)
     
     return {"success": True, "message": "Target feature configuration saved successfully."}
 
-    # Initialize feature cache after data is loaded
-    from .features_routes import initialize_feature_cache
-    initialize_feature_cache(df_encoded)
+    # # Initialize feature cache after data is loaded
+    # from .features_routes import initialize_feature_cache
+    # initialize_feature_cache(df_encoded)
 
-    return None
+    # return None
+
+
+# DONE:  Check for N/A validation
 
 @router.get("/api/detect-missing-data-options")
 async def detect_missing_data_options(request: Request):
@@ -404,11 +431,17 @@ async def dataset_preview_live(
     ext = os.path.splitext(filename or "")[1].lower()
     try:
         if ext == ".csv":
+            # Detect separator for CSV files
+            sample = file[:1024].decode('utf-8', errors='ignore')
+            if ';' in sample and sample.count(';') > sample.count(','):
+                sep = ';'
+            else:
+                sep = ','
             if featureNames == "false":
-                df = pd.read_csv(io.BytesIO(file), header=None)
+                df = pd.read_csv(io.BytesIO(file), header=None, sep=sep, low_memory=False)
                 df.columns = [f"Feature {i+1}" for i in range(len(df.columns))]
             else:
-                df = pd.read_csv(io.BytesIO(file))
+                df = pd.read_csv(io.BytesIO(file), sep=sep, low_memory=False)
         else:
             if featureNames == "false":
                 df = pd.read_excel(io.BytesIO(file), header=None)
@@ -427,9 +460,14 @@ async def dataset_preview_live(
     if other_text and missing_data_options.get("other", False):
         for text in other_text.split(","):
             text = text.strip()
-            if text.isnumeric():
-                df_preview.replace(float(text), np.nan, inplace=True)
-            else:
+            try:
+                # Try to convert to float to detect numeric values (including decimals)
+                numeric_value = float(text)
+                # Replace both numeric and string representations
+                df_preview.replace(numeric_value, np.nan, inplace=True)
+                df_preview.replace(text, np.nan, inplace=True)
+            except ValueError:
+                # If conversion fails, treat as text
                 df_preview.replace(text, np.nan, inplace=True)
 
     title_row = df_preview.columns.tolist()

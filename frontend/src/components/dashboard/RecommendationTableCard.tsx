@@ -154,9 +154,9 @@ const RecommendationTableCard: React.FC<RecommendationTableCardProps> = ({
         }
     };
 
-    // useEffect(() => {
-    //     fetchRecommendations();
-    // }, []);
+    useEffect(() => {
+        fetchRecommendations();
+    }, []);
 
     useEffect(() => {
         const handleDataTypeChange = () => {
