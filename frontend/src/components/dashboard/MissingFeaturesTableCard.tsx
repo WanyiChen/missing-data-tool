@@ -12,6 +12,7 @@ import {
 } from "./filter";
 import type { SortOption, DataTypeFilter, CorrelationFilter } from "./filter";
 import { ModalLink } from "../common/modal";
+import PaginationControls from "../common/PaginationControls";
 
 interface FeatureData {
     feature_name: string;
@@ -48,6 +49,14 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [features, setFeatures] = useState<FeatureData[]>([]);
+    const [pagination, setPagination] = useState({
+        page: 0,
+        limit: 10,
+        total: 0,
+        total_pages: 0,
+        has_next: false,
+        has_prev: false
+    });
     const [openDataTypeDropdown, setOpenDataTypeDropdown] = useState<
         string | null
     >(null);
@@ -144,36 +153,63 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
     });
 
     // Load basic feature data
-    useEffect(() => {
-        const fetchFeaturesData = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const res = await axios.get("/api/missing-features-table");
-                if (res.data.success) {
-                    // Initialize features with loading states
-                    const featuresWithLoading = res.data.features.map(
-                        (feature: FeatureData) => ({
-                            ...feature,
-                            isLoadingCorrelation: true,
-                            isLoadingInformative: true,
-                        })
-                    );
-                    setFeatures(featuresWithLoading);
+    const fetchFeaturesData = async (page: number = 0, limit: number = 10) => {
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await axios.get(`/api/missing-features-table?page=${page}&limit=${limit}`);
+            if (res.data.success) {
+                // Initialize features with loading states
+                const featuresWithLoading = res.data.features.map(
+                    (feature: FeatureData) => ({
+                        ...feature,
+                        isLoadingCorrelation: true,
+                        isLoadingInformative: true,
+                    })
+                );
+                setPagination(res.data.pagination);
 
-                    // Start loading detailed analysis for each feature
-                    featuresWithLoading.forEach((feature: FeatureData) => {
-                        loadFeatureAnalysis(feature.feature_name);
-                    });
-                } else {
-                    setError(res.data.message || "Failed to fetch data");
-                }
-            } catch (err: any) {
-                setError(err);
-            } finally {
-                setLoading(false);
+                // Load detailed analysis for all features and wait for completion
+                const analysisPromises = featuresWithLoading.map((feature: FeatureData) => 
+                    loadFeatureAnalysisPromise(feature.feature_name)
+                );
+                
+                const analysisResults = await Promise.allSettled(analysisPromises);
+                
+                // Update features with analysis results
+                const updatedFeatures = featuresWithLoading.map((feature: FeatureData, index: number) => {
+                    const result = analysisResults[index];
+                    if (result.status === 'fulfilled' && result.value) {
+                        return {
+                            ...feature,
+                            most_correlated_with: result.value.correlated_features.length > 0
+                                ? result.value.correlated_features[0]
+                                : null,
+                            correlated_features: result.value.correlated_features,
+                            informative_missingness: result.value.informative_missingness,
+                            isLoadingCorrelation: false,
+                            isLoadingInformative: false,
+                        };
+                    }
+                    return {
+                        ...feature,
+                        isLoadingCorrelation: false,
+                        isLoadingInformative: false,
+                    };
+                });
+                
+                setFeatures(updatedFeatures);
+            } else {
+                setError(res.data.message || "Failed to fetch data");
             }
-        };
+        } catch (err: any) {
+            setError(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
         fetchFeaturesData();
     }, []);
 
@@ -191,6 +227,33 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
     ]);
 
 
+
+    // Load detailed analysis for a specific feature (returns promise)
+    const loadFeatureAnalysisPromise = async (featureName: string) => {
+        try {
+            const params = new URLSearchParams({
+                pearson_threshold:
+                    correlationFilter.pearsonThreshold.toString(),
+                cramer_v_threshold:
+                    correlationFilter.cramerVThreshold.toString(),
+                eta_squared_threshold:
+                    correlationFilter.etaThreshold.toString(),
+            });
+
+            const res = await axios.get(
+                `/api/feature-details/${encodeURIComponent(
+                    featureName
+                )}?${params}`
+            );
+            if (res.data.success) {
+                return res.data;
+            }
+            return null;
+        } catch (err: any) {
+            console.error(`Error loading analysis for ${featureName}:`, err);
+            return null;
+        }
+    };
 
     // Load detailed analysis for a specific feature
     const loadFeatureAnalysis = async (featureName: string) => {
@@ -571,11 +634,12 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
             ) : error ? (
                 <div className="text-center text-red-500 py-8">{error}</div>
             ) : (
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="border-b">
-                                <th className="text-center py-3 px-2 font-medium text-gray-700 border">
+                <div className="max-h-96 overflow-y-auto rounded-lg border">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-white z-10 shadow-sm">
+                                <tr className="border-b-2 border-gray-300">
+                                    <th className="text-center py-3 px-2 font-medium text-gray-700 border">
                                     <div className="flex items-center gap-1 justify-center">
                                         <ModalLink
                                             text={"Data Type"}
@@ -833,8 +897,17 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                             )}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             )}
+
+            <PaginationControls
+                pagination={pagination}
+                loading={loading}
+                onPageChange={fetchFeaturesData}
+                itemName="features"
+            />
+            {/* Pagination Controls - removed from here */}
 
             <DataTypeDropdown
                 isOpen={!!openDataTypeDropdown}

@@ -495,7 +495,7 @@ def calculate_informative_missingness(df: pd.DataFrame, feature_name: str) -> Di
 
 def calculate_all_recommendations(dataset_mechanism: str = None) -> Dict[str, Dict]:
     """
-    Calculate recommendations for all features in the cache with comprehensive error handling.
+    Calculate recommendations for features with missing data only.
     
     Args:
         dataset_mechanism: Dataset missing data mechanism
@@ -514,9 +514,17 @@ def calculate_all_recommendations(dataset_mechanism: str = None) -> Dict[str, Di
     
     successful_calculations = 0
     failed_calculations = 0
+    features_with_missing = 0
     
     for feature_name, feature in FEATURE_CACHE.items():
         try:
+            # Only process features that have missing data
+            if feature.number_missing == 0:
+                logger.debug(f"Skipping feature {feature_name} - no missing data")
+                continue
+                
+            features_with_missing += 1
+            
             if feature.needs_recommendation_recalculation():
                 logger.debug(f"Calculating recommendation for feature: {feature_name}")
                 feature.calculate_and_set_recommendation(dataset_mechanism)
@@ -536,7 +544,7 @@ def calculate_all_recommendations(dataset_mechanism: str = None) -> Dict[str, Di
             logger.error(f"Error calculating recommendation for feature {feature_name}: {str(e)}")
             recommendations[feature_name] = None
     
-    logger.info(f"Recommendation calculation summary: {successful_calculations} successful, {failed_calculations} failed")
+    logger.info(f"Recommendation calculation summary: {features_with_missing} features with missing data, {successful_calculations} successful, {failed_calculations} failed")
     
     return recommendations
 

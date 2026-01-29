@@ -12,6 +12,7 @@ import {
 } from "./filter";
 import type { DataTypeFilter, CorrelationFilter } from "./filter";
 import { ModalLink } from "../common/modal";
+import PaginationControls from "../common/PaginationControls";
 
 // Interface will be used in subsequent tasks
 interface CompleteFeatureData {
@@ -46,6 +47,14 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [errorType, setErrorType] = useState<string | null>(null);
     const [features, setFeatures] = useState<CompleteFeatureData[]>([]);
+    const [pagination, setPagination] = useState({
+        page: 0,
+        limit: 10,
+        total: 0,
+        total_pages: 0,
+        has_next: false,
+        has_prev: false
+    });
     const [retryCount, setRetryCount] = useState(0);
 
     // Data type dropdown states
@@ -419,7 +428,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
         }
     };
 
-    const fetchFeaturesData = async (isRetry: boolean = false) => {
+    const fetchFeaturesData = async (page: number = 0, limit: number = 10, isRetry: boolean = false) => {
         if (!isRetry) {
             setLoading(true);
             setError(null);
@@ -427,7 +436,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
         }
 
         try {
-            const res = await axios.get("/api/complete-features-table", {
+            const res = await axios.get(`/api/complete-features-table?page=${page}&limit=${limit}`, {
                 timeout: 30000, // 30 second timeout
                 headers: {
                     "Cache-Control": "no-cache",
@@ -443,6 +452,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                     })
                 );
                 setFeatures(featuresWithLoading);
+                setPagination(res.data.pagination);
                 setError(null);
                 setErrorType(null);
                 setRetryCount(0);
@@ -479,7 +489,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
             ) {
                 setTimeout(() => {
                     setRetryCount((prev) => prev + 1);
-                    fetchFeaturesData(true);
+                    fetchFeaturesData(page, limit, true);
                 }, Math.pow(2, retryCount) * 1000); // Exponential backoff: 1s, 2s
             } else if (errorInfo.type === "server_error" && retryCount >= 2) {
                 // If server is completely down after retries, show degraded mode message
@@ -716,6 +726,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
 
 
     return (
+        <div>
         <div className="rounded-2xl border bg-white shadow-sm p-6 w-full">
             {/* Header Section */}
             <div
@@ -783,7 +794,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                             "service_unavailable",
                         ].includes(errorType || "") && (
                             <button
-                                onClick={() => fetchFeaturesData()}
+                                onClick={() => fetchFeaturesData(pagination.page, pagination.limit)}
                                 disabled={loading}
                                 className="px-4 py-2 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
@@ -823,10 +834,13 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                         </div>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto max-h-96 overflow-y-auto border rounded-lg">
                         <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b">
+                            {/* <thead className="sticky top-0 bg-white z-10 after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-gray-700">
+                                <tr> */}
+
+                            <thead className="sticky top-0 bg-white z-10 shadow-sm">
+                                <tr className="border-b-2 border-gray-300">
                                     <th className="text-center py-3 px-2 font-medium text-gray-700 border">
                                         <div className="flex items-center gap-1 justify-center">
                                             <ModalLink
@@ -915,7 +929,6 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                                                 </button>
                                             </td>
                                             <td className="text-center py-3 px-2 border">
-                                                {/* Feature name column will be implemented in subsequent tasks */}
                                                 <span className="text-blue-600">
                                                     {feature.feature_name}
                                                 </span>
@@ -994,9 +1007,16 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                             </tbody>
                         </table>
                     </div>
-                )}
-            </div>
+                )}            
+            
 
+            <PaginationControls
+                pagination={pagination}
+                loading={loading}
+                onPageChange={fetchFeaturesData}
+                itemName="features"
+            />
+</div>
             <DataTypeFilterDropdown
                 isOpen={openDataTypeFilterDropdown}
                 onClose={closeDataTypeFilterDropdown}
@@ -1036,6 +1056,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                 position={correlationDetailsPosition}
                 buttonPosition={correlationDetailsButtonPosition}
             />
+        </div>
         </div>
     );
 };

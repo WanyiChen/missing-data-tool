@@ -155,12 +155,20 @@ const RecommendationTableCard: React.FC<RecommendationTableCardProps> = ({
     };
 
     useEffect(() => {
-        fetchRecommendations();
+        // Delay initial fetch to allow correlation analysis to complete
+        const timer = setTimeout(() => {
+            fetchRecommendations();
+        }, 2000); // Wait 2 seconds for correlation analysis
+        
+        return () => clearTimeout(timer);
     }, []);
 
     useEffect(() => {
         const handleDataTypeChange = () => {
-            fetchRecommendations();
+            // Also delay when data types change
+            setTimeout(() => {
+                fetchRecommendations();
+            }, 1000);
         };
 
         window.addEventListener('dataTypeChanged', handleDataTypeChange);
@@ -168,15 +176,22 @@ const RecommendationTableCard: React.FC<RecommendationTableCardProps> = ({
     }, []);
 
 
-    const formatFeatureList = (features: string[]): string => {
-        if (features.length === 0) return "";
-        if (features.length === 1) return features[0];
-        if (features.length === 2) return `${features[0]} and ${features[1]}`;
-
-        // For 3 or more features: "Feature 1, Feature 2, and Feature 3"
-        const lastFeature = features[features.length - 1];
-        const otherFeatures = features.slice(0, -1);
-        return `${otherFeatures.join(", ")}, and ${lastFeature}`;
+    const formatFeatureList = (features: string[]): React.ReactElement => {
+        if (features.length === 0) return <span className="text-gray-400">No features</span>;
+        
+        return (
+            <div className="flex flex-wrap gap-1 justify-center">
+                {features.map((feature, index) => (
+                    <span
+                        key={index}
+                        className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full border border-blue-200 font-medium"
+                        title={feature}
+                    >
+                        {feature}
+                    </span>
+                ))}
+            </div>
+        );
     };
 
     return (
@@ -286,7 +301,7 @@ const RecommendationTableCard: React.FC<RecommendationTableCardProps> = ({
                                         className="border-b hover:bg-gray-50 transition-colors duration-150"
                                     >
                                         <td className="py-3 px-2 border text-center align-top">
-                                            <div className="text-xs sm:text-sm break-words">
+                                            <div className="min-w-0">
                                                 {formatFeatureList(
                                                     recommendation.features
                                                 )}
