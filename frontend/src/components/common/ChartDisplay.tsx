@@ -74,7 +74,7 @@ const ChartDisplay: React.FC<ChartDisplayProps> = ({
         const afterLabels = Object.keys(afterData);
         const afterValues = Object.values(afterData);
 
-        const data = [
+        const data: any[] = [
             {
                 values: beforeValues,
                 labels: beforeLabels,

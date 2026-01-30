@@ -11,6 +11,8 @@ scikit-learn
 openpyxl
 xlrd
 pytest
+pytest-asyncio
+httpx
 python-multipart
 pyampute
 scipy
