@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import FirstQuestion from "../components/questions/FirstQuestion";
 import SecondQuestion from "../components/questions/SecondQuestion";
@@ -69,6 +69,16 @@ export default function LandingPage() {
     >(null);
 
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+
+    // Check for step parameter in URL
+    useEffect(() => {
+        const stepParam = searchParams.get('step');
+        if (stepParam === '3') {
+            setStep(3);
+            setFeatureNames(true); // Assume feature names exist for step 3
+        }
+    }, [searchParams]);
 
     const handleError = (message: string) => {
         setErrorModal({ open: true, message });

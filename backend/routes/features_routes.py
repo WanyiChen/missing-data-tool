@@ -152,18 +152,25 @@ def get_feature_details(
         # Calculate informative missingness if not already calculated
         if not feature.informative_calculated:
             try:
-                # Get target information from request app state
-                target_col = getattr(request.app.state, "target_feature", None)
-                target_type = getattr(request.app.state, "target_type", None)
-                
-                # Calculate informative missingness with target information
-                informative_data = calculate_informative_missingness(
-                    df, 
-                    feature_name,
-                    target_col=target_col,
-                    target_type=target_type
-                )
-                feature.set_informative_missingness(informative_data)
+                # Skip informative missingness for complete features (no missing data)
+                if feature.number_missing == 0:
+                    feature.set_informative_missingness({
+                        "is_informative": False,
+                        "p_value": 1.0
+                    })
+                else:
+                    # Get target information from request app state
+                    target_col = getattr(request.app.state, "target_feature", None)
+                    target_type = getattr(request.app.state, "target_type", None)
+                    
+                    # Calculate informative missingness with target information
+                    informative_data = calculate_informative_missingness(
+                        df, 
+                        feature_name,
+                        target_col=target_col,
+                        target_type=target_type
+                    )
+                    feature.set_informative_missingness(informative_data)
             except Exception as inf_error:
                 # If informative missingness calculation fails, log it but don't fail the whole request
                 import logging
