@@ -512,11 +512,24 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
 
     // Reload feature analysis when correlation filter thresholds change
     useEffect(() => {
-        if (features.length > 0) {
+        if (features.length === 0) return;
+
+        // Set loading state for all features
+        setFeatures(prevFeatures => 
+            prevFeatures.map(feature => ({
+                ...feature,
+                isLoadingCorrelation: true
+            }))
+        );
+
+        // Debounce API calls to prevent excessive requests
+        const timeoutId = setTimeout(() => {
             features.forEach((feature: CompleteFeatureData) => {
                 loadFeatureAnalysis(feature.feature_name);
             });
-        }
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timeoutId);
     }, [
         correlationFilter.pearsonThreshold,
         correlationFilter.cramerVThreshold,

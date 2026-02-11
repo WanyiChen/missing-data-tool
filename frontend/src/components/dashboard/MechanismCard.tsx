@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { BaseCard } from "./base";
 import { ModalLink } from "../common/modal";
 
 const MechanismCard: React.FC = () => {
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [mechanism, setMechanism] = useState<{
@@ -53,7 +55,7 @@ const MechanismCard: React.FC = () => {
                     <ModalLink
                         text={mechanism.mechanism_acronym}
                         className="font-semibold text-xl mb-1"
-                        onClick={() => {} /* MDT-26 */}
+                        onClick={() => navigate('/missing-data-mechanism')}
                     />
                     <div className="text-xs text-gray-500 text-center">
                         {mechanism.mechanism_full}

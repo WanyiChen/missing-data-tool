@@ -3,6 +3,7 @@ import axios from "axios";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import { useNavigate } from "react-router-dom";
 import {
     DataTypeDropdown,
     FilterDropdown,
@@ -46,6 +47,8 @@ interface MissingFeaturesTableCardProps {
 const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
     onInfoClick,
 }: MissingFeaturesTableCardProps) => {
+    const navigate = useNavigate();
+    const [hasTargetFeature, setHasTargetFeature] = useState<boolean>(true);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [features, setFeatures] = useState<FeatureData[]>([]);
@@ -151,6 +154,23 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
         number: "No Sort",
         percentage: "No Sort",
     });
+
+    // Check if target feature exists
+    useEffect(() => {
+        const checkTargetFeature = async () => {
+            try {
+                const res = await axios.get('/api/target-feature-status');
+                setHasTargetFeature(res.data.success && res.data.has_target_feature);
+            } catch {
+                setHasTargetFeature(false);
+            }
+        };
+        checkTargetFeature();
+    }, []);
+
+    const handleSelectTargetFeature = () => {
+        navigate('/?step=3');
+    };
 
     // Load basic feature data
     const fetchFeaturesData = async (page: number = 0, limit: number = 10) => {
@@ -629,6 +649,29 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                 Features with missing data
             </div>
 
+            {!hasTargetFeature && (
+                <div className="mb-4 text-sm text-gray-600">
+                    To gain insight into{" "}
+                    <button
+                        onClick={() => onInfoClick(
+                            "Sometimes, the fact that some cases are missing some particular features can be informative. For instance, in a hypothetical financial dataset, if people with lower credit scores are less likely to report their credit scores, then whether a person's credit score is missing is informative. Informative missingness often happens when data is Missing Not at Random (MNAR)."
+                        )}
+                        className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1"
+                    >
+                        informative missingness
+                        <InfoOutlinedIcon fontSize="small" />
+                    </button>
+                    ,{" "}
+                    <button
+                        onClick={handleSelectTargetFeature}
+                        className="text-blue-600 hover:text-blue-800 underline"
+                    >
+                        select your target feature
+                    </button>
+                    .
+                </div>
+            )}
+
             {loading ? (
                 <div className="text-center text-gray-400 py-8">Loading...</div>
             ) : error ? (
@@ -746,18 +789,20 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                         </button>
                                     </div>
                                 </th>
-                                <th className="text-center py-3 px-2 font-medium text-gray-700 border">
-                                    <div className="flex items-center gap-1 justify-center">
-                                        <ModalLink
-                                            text={"Informative Missingness"}
-                                            onClick={() => {
-                                                onInfoClick?.(
-                                                    "Sometimes, the fact that some cases are missing some particular features can be informative. For instance, in a hypothetical financial dataset, if people with lower credit scores are less likely to report their credit scores, then whether a person's credit score is missing is informative. Informative missingness often happens when data is Missing Not at Random (MNAR). \nIn the table, informative missingness is calculated by testing the relationships between the user-specified target feature and the missingness of all other features. If p-value > 0.05, the missingness is considered not informative. If p-value <= 0.05, data is considered informative. \nFor more details on how the p-value is calculated, please check out this paper: Van Ness, M., Bosschieter, T. M., Halpin- Gregorio, R., & Udell, M. (2023, August). The missing indicator method: From low to high dimensions. In Proceedings of the 29th ACM SIGKDD Conference on Knowledge Discovery and Data Mining (pp. 5004-5015)."
-                                                );
-                                            }}
-                                        />
-                                    </div>
-                                </th>
+                                {hasTargetFeature && (
+                                    <th className="text-center py-3 px-2 font-medium text-gray-700 border">
+                                        <div className="flex items-center gap-1 justify-center">
+                                            <ModalLink
+                                                text={"Informative Missingness"}
+                                                onClick={() => {
+                                                    onInfoClick?.(
+                                                        "Sometimes, the fact that some cases are missing some particular features can be informative. For instance, in a hypothetical financial dataset, if people with lower credit scores are less likely to report their credit scores, then whether a person's credit score is missing is informative. Informative missingness often happens when data is Missing Not at Random (MNAR). \nIn the table, informative missingness is calculated by testing the relationships between the user-specified target feature and the missingness of all other features. If p-value > 0.05, the missingness is considered not informative. If p-value <= 0.05, data is considered informative. \nFor more details on how the p-value is calculated, please check out this paper: Van Ness, M., Bosschieter, T. M., Halpin- Gregorio, R., & Udell, M. (2023, August). The missing indicator method: From low to high dimensions. In Proceedings of the 29th ACM SIGKDD Conference on Knowledge Discovery and Data Mining (pp. 5004-5015)."
+                                                    );
+                                                }}
+                                            />
+                                        </div>
+                                    </th>
+                                )}
                             </tr>
                         </thead>
                         <tbody>
@@ -867,31 +912,33 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="text-center py-3 px-2 border">
-                                            {feature.isLoadingInformative ? (
-                                                <div className="flex items-center justify-center">
-                                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                                                    <span className="ml-2 text-xs text-gray-500">
-                                                        Loading...
-                                                    </span>
-                                                </div>
-                                            ) : (
-                                                <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300">
-                                                    {feature
-                                                        .informative_missingness
-                                                        .is_informative
-                                                        ? "Yes"
-                                                        : "No"}
-                                                    <span className="ml-1">
-                                                        (p ={" "}
-                                                        {feature.informative_missingness.p_value.toFixed(
-                                                            2
-                                                        )}
-                                                        )
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </td>
+                                        {hasTargetFeature && (
+                                            <td className="text-center py-3 px-2 border">
+                                                {feature.isLoadingInformative ? (
+                                                    <div className="flex items-center justify-center">
+                                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                                                        <span className="ml-2 text-xs text-gray-500">
+                                                            Loading...
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300">
+                                                        {feature
+                                                            .informative_missingness
+                                                            .is_informative
+                                                            ? "Yes"
+                                                            : "No"}
+                                                        <span className="ml-1">
+                                                            (p ={" "}
+                                                            {feature.informative_missingness.p_value.toFixed(
+                                                                2
+                                                            )}
+                                                            )
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </td>
+                                        )}
                                     </tr>
                                 )
                             )}

@@ -496,6 +496,23 @@ async def dataset_preview_live(
         "data_rows": converted_data_rows
     }
 
+@router.get("/api/target-feature-status")
+def get_target_feature_status(request: Request):
+    """
+    Check if a target feature has been configured.
+    """
+    target_feature = getattr(request.app.state, "target_feature", None)
+    target_type = getattr(request.app.state, "target_type", None)
+    
+    has_target = bool(target_feature and target_feature.strip())
+    
+    return {
+        "success": True,
+        "has_target_feature": has_target,
+        "target_feature": target_feature if has_target else None,
+        "target_type": target_type if has_target else None
+    }
+
 @router.get("/api/missing-data-analysis")
 def missing_data_analysis(request: Request):
     df = getattr(request.app.state, "df", None)
