@@ -912,21 +912,9 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                             </button>
                                         </td>
                                         <td className="text-center py-3 px-2 border">
-                                            <a
-                                                href="#"
-                                                className="text-blue-600 hover:text-blue-800 cursor-pointer"
-                                                onClick={(
-                                                    e: React.MouseEvent
-                                                ) => {
-                                                    e.preventDefault();
-                                                    // TODO: Implement feature detail view
-                                                    console.log(
-                                                        `Clicked on ${feature.feature_name}`
-                                                    );
-                                                }}
-                                            >
+                                            <span className="text-black">
                                                 {feature.feature_name}
-                                            </a>
+                                            </span>
                                         </td>
                                         <td className="text-center py-3 px-2 border font-medium">
                                             {feature.number_missing.toLocaleString()}

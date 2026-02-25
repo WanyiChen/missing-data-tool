@@ -179,7 +179,7 @@ const DashboardPage: React.FC = () => {
                             <MissingFeaturesTableCard onInfoClick={handleInfoClick} />
                             <CompleteFeaturesTableCard onInfoClick={handleInfoClick} />
                             <RecommendationTableCard onInfoClick={handleInfoClick} />
-                            <NextPageCard />
+                            {/* <NextPageCard /> */}
                         </>
                     )}
                 </div>

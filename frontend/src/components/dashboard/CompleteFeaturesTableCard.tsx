@@ -1013,7 +1013,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                                                 </button>
                                             </td>
                                             <td className="text-center py-3 px-2 border">
-                                                <span className="text-blue-600">
+                                                <span className="text-black">
                                                     {feature.feature_name}
                                                 </span>
                                             </td>
