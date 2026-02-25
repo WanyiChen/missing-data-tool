@@ -48,6 +48,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
     onInfoClick,
 }: MissingFeaturesTableCardProps) => {
     const navigate = useNavigate();
+    const tableContainerRef = React.useRef<HTMLDivElement>(null);
     const [hasTargetFeature, setHasTargetFeature] = useState<boolean>(true);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -580,6 +581,78 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
         setCorrelationFilter(newFilter);
     };
 
+    // Add scroll listener to reposition dropdowns when scrolling
+    useEffect(() => {
+        const container = tableContainerRef.current;
+        if (!container) return;
+
+        const handleScroll = () => {
+            if (openDataTypeFilterDropdown) {
+                const btn = container.querySelector('[data-dropdown-trigger="datatype-filter"]');
+                if (btn) {
+                    const rect = btn.getBoundingClientRect();
+                    setDataTypeFilterPosition({ x: rect.left + rect.width / 2, y: rect.bottom + 5 });
+                }
+            }
+            if (openCorrelationFilterDropdown) {
+                const btn = container.querySelector('[data-dropdown-trigger="correlation-filter"]');
+                if (btn) {
+                    const rect = btn.getBoundingClientRect();
+                    setCorrelationFilterPosition({ x: rect.left + rect.width / 2, y: rect.bottom + 5 });
+                }
+            }
+            if (openFilterDropdown) {
+                const btn = container.querySelector(`[data-dropdown-trigger="${openFilterDropdown}-sort"]`);
+                if (btn) {
+                    const rect = btn.getBoundingClientRect();
+                    setFilterDropdownPosition({ x: rect.left + rect.width / 2, y: rect.bottom + 5 });
+                }
+            }
+            if (openCorrelationDetailsDropdown) {
+                const btn = container.querySelector(`[data-dropdown-trigger="correlation-details-${openCorrelationDetailsDropdown}"]`);
+                if (btn) {
+                    const rect = btn.getBoundingClientRect();
+                    setCorrelationDetailsPosition({ x: rect.left + rect.width / 2, y: rect.bottom + 5 });
+                }
+            }
+            if (openDataTypeDropdown) {
+                const btn = container.querySelector(`[data-dropdown-trigger="datatype-${openDataTypeDropdown}"]`);
+                if (btn) {
+                    const rect = btn.getBoundingClientRect();
+                    setDataTypeDropdownPosition({ x: rect.left + rect.width / 2, y: rect.top - 10 });
+                }
+            }
+        };
+
+        container.addEventListener('scroll', handleScroll);
+        window.addEventListener('scroll', handleScroll);
+        return () => {
+            container.removeEventListener('scroll', handleScroll);
+            window.removeEventListener('scroll', handleScroll);
+        };
+    }, [openDataTypeFilterDropdown, openCorrelationFilterDropdown, openFilterDropdown, openCorrelationDetailsDropdown, openDataTypeDropdown]);
+
+    // Add click outside listener to close dropdowns
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as Element;
+            
+            // Don't close if clicking on dropdown content or buttons
+            if (target && target.closest('[data-dropdown]')) {
+                return;
+            }
+            
+            closeDropdown();
+            closeFilterDropdown();
+            closeDataTypeFilterDropdown();
+            closeCorrelationFilterDropdown();
+            closeCorrelationDetailsDropdown();
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     // Listen for data type changes from other components
     useEffect(() => {
         const handleDataTypeChanged = () => {
@@ -677,7 +750,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
             ) : error ? (
                 <div className="text-center text-red-500 py-8">{error}</div>
             ) : (
-                <div className="max-h-96 overflow-y-auto rounded-lg border">
+                <div ref={tableContainerRef} className="max-h-96 overflow-y-auto rounded-lg border">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead className="sticky top-0 bg-white z-10 shadow-sm">
@@ -698,6 +771,8 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                                 toggleDataTypeFilterDropdown(e);
                                             }}
                                             className={`group transition-colors duration-100 cursor-pointer p-1 rounded hover:bg-gray-200`}
+                                            data-dropdown
+                                            data-dropdown-trigger="datatype-filter"
                                         >
                                             <FilterListIcon
                                                 fontSize="small"
@@ -717,6 +792,8 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                                 );
                                             }}
                                             className={`group transition-colors duration-100 cursor-pointer p-1 rounded hover:bg-gray-200`}
+                                            data-dropdown
+                                            data-dropdown-trigger="feature-sort"
                                         >
                                             <FilterListIcon
                                                 fontSize="small"
@@ -736,6 +813,8 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                                 );
                                             }}
                                             className={`group transition-colors duration-100 cursor-pointer p-1 rounded hover:bg-gray-200`}
+                                            data-dropdown
+                                            data-dropdown-trigger="number-sort"
                                         >
                                             <FilterListIcon
                                                 fontSize="small"
@@ -755,6 +834,8 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                                 );
                                             }}
                                             className={`group transition-colors duration-100 cursor-pointer p-1 rounded hover:bg-gray-200`}
+                                            data-dropdown
+                                            data-dropdown-trigger="percentage-sort"
                                         >
                                             <FilterListIcon
                                                 fontSize="small"
@@ -781,6 +862,8 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                                 );
                                             }}
                                             className={`group transition-colors duration-100 cursor-pointer p-1 rounded hover:bg-gray-200`}
+                                            data-dropdown
+                                            data-dropdown-trigger="correlation-filter"
                                         >
                                             <FilterListIcon
                                                 fontSize="small"
@@ -820,6 +903,8 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                                     )
                                                 }
                                                 className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 hover:scale-105 transition-all duration-200 cursor-pointer"
+                                                data-dropdown
+                                                data-dropdown-trigger={`datatype-${feature.feature_name}`}
                                             >
                                                 {getDataTypeDisplay(
                                                     feature.data_type
@@ -901,6 +986,8 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                                                     );
                                                                 }}
                                                                 className="ml-1 text-gray-400 hover:text-gray-600 transition-colors duration-200 cursor-pointer"
+                                                                data-dropdown
+                                                                data-dropdown-trigger={`correlation-details-${feature.feature_name}`}
                                                             >
                                                                 <ArrowDropDownIcon fontSize="small" />
                                                             </button>
