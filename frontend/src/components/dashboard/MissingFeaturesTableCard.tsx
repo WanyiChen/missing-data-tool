@@ -1009,7 +1009,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                                         </span>
                                                     </div>
                                                 ) : (
-                                                    <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300">
+                                                    <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${feature.informative_missingness.is_informative ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : 'bg-gray-100 text-gray-800 border-gray-300'}`} style={feature.informative_missingness.is_informative ? {backgroundColor: '#FFFFC5'} : {}}>
                                                         {feature
                                                             .informative_missingness
                                                             .is_informative
