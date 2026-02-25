@@ -252,6 +252,7 @@ async def submit_missing_data_options(request: Request, missingDataOptions: str 
     # Apply missing data replacements
     df_processed = df.copy()
     
+    # Apply global missing data options to all columns
     if missing_data_options["na"]:
         df_processed.replace("N/A", np.nan, inplace=True)
     
@@ -268,6 +269,31 @@ async def submit_missing_data_options(request: Request, missingDataOptions: str 
             except ValueError:
                 # If conversion fails, treat as text
                 df_processed.replace(text, np.nan, inplace=True)
+    
+    # Apply feature-specific missing data options
+    feature_specific = missing_data_options.get("featureSpecific", {})
+    for feature_name, feature_options in feature_specific.items():
+        if feature_name not in df_processed.columns:
+            continue
+            
+        # Apply feature-specific N/A replacement
+        if feature_options.get("na", False):
+            df_processed[feature_name].replace("N/A", np.nan, inplace=True)
+        
+        # Apply feature-specific other text replacements
+        feature_other_text = feature_options.get("otherText", "")
+        if feature_other_text and feature_options.get("other", False):
+            for text in feature_other_text.split(","):
+                text = text.strip()
+                try:
+                    # Try to convert to float to detect numeric values
+                    numeric_value = float(text)
+                    # Replace both numeric and string representations
+                    df_processed[feature_name].replace(numeric_value, np.nan, inplace=True)
+                    df_processed[feature_name].replace(text, np.nan, inplace=True)
+                except ValueError:
+                    # If conversion fails, treat as text
+                    df_processed[feature_name].replace(text, np.nan, inplace=True)
     
     # Store the processed dataframe
     request.app.state.df = df_processed
@@ -453,6 +479,8 @@ async def dataset_preview_live(
     
     # Apply missing data options
     df_preview = df.copy()
+    
+    # Apply global options
     if missing_data_options.get("na", False):
         df_preview.replace("N/A", np.nan, inplace=True)
 
@@ -469,6 +497,31 @@ async def dataset_preview_live(
             except ValueError:
                 # If conversion fails, treat as text
                 df_preview.replace(text, np.nan, inplace=True)
+    
+    # Apply feature-specific options
+    feature_specific = missing_data_options.get("featureSpecific", {})
+    for feature_name, feature_options in feature_specific.items():
+        if feature_name not in df_preview.columns:
+            continue
+            
+        # Apply feature-specific N/A replacement
+        if feature_options.get("na", False):
+            df_preview[feature_name].replace("N/A", np.nan, inplace=True)
+        
+        # Apply feature-specific other text replacements
+        feature_other_text = feature_options.get("otherText", "")
+        if feature_other_text and feature_options.get("other", False):
+            for text in feature_other_text.split(","):
+                text = text.strip()
+                try:
+                    # Try to convert to float to detect numeric values
+                    numeric_value = float(text)
+                    # Replace both numeric and string representations
+                    df_preview[feature_name].replace(numeric_value, np.nan, inplace=True)
+                    df_preview[feature_name].replace(text, np.nan, inplace=True)
+                except ValueError:
+                    # If conversion fails, treat as text
+                    df_preview[feature_name].replace(text, np.nan, inplace=True)
 
     title_row = df_preview.columns.tolist()
     data_rows = df_preview.head(10).values.tolist()
