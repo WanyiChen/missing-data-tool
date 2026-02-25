@@ -729,7 +729,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                         onClick={() => onInfoClick(
                             "Sometimes, the fact that some cases are missing some particular features can be informative. For instance, in a hypothetical financial dataset, if people with lower credit scores are less likely to report their credit scores, then whether a person's credit score is missing is informative. Informative missingness often happens when data is Missing Not at Random (MNAR)."
                         )}
-                        className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1"
+                        className="text-blue-600 hover:text-blue-800 inline-flex items-center gap-1"
                     >
                         informative missingness
                         <InfoOutlinedIcon fontSize="small" />
@@ -737,7 +737,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                     ,{" "}
                     <button
                         onClick={handleSelectTargetFeature}
-                        className="text-blue-600 hover:text-blue-800 underline"
+                        className="text-blue-600 hover:text-blue-800"
                     >
                         select your target feature
                     </button>
@@ -914,7 +914,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                         <td className="text-center py-3 px-2 border">
                                             <a
                                                 href="#"
-                                                className="text-blue-600 hover:text-blue-800 underline"
+                                                className="text-blue-600 hover:text-blue-800 cursor-pointer"
                                                 onClick={(
                                                     e: React.MouseEvent
                                                 ) => {
