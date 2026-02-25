@@ -61,26 +61,30 @@ const MissingDataMechanismPage: React.FC = () => {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-white">
             <div className="w-full max-w-4xl px-4 py-8">
-                <h1 className="text-4xl font-bold mb-8 text-center">{getTitle()}</h1>
+                <h1 className="text-2xl font-semibold mb-8 text-center">Missing data mechanism explanations</h1>
 
                 {/* Explanation of missing data mechanisms */}
-                <div className="bg-white rounded-lg shadow-sm border mb-6">
-                    <button
+                <div className="bg-white rounded-2xl shadow-sm border p-4 mb-6">
+                    <div
+                        className="text-lg font-semibold mb-4 flex items-center gap-2 cursor-pointer hover:bg-gray-50 -m-2 p-2 rounded-lg transition-colors duration-200"
                         onClick={() => toggleSection('mechanisms')}
-                        className={`w-full p-6 text-left flex items-center justify-between hover:bg-gray-50 transition-colors ${
-                            expandedSections.mechanisms ? 'rounded-t-lg' : 'rounded-lg'
-                        }`}
                     >
-                        <h2 className="text-xl font-semibold">Explanation of missing data mechanisms</h2>
                         {expandedSections.mechanisms ? (
                             <KeyboardArrowDownIcon className="text-gray-600" />
                         ) : (
                             <KeyboardArrowRightIcon className="text-gray-600" />
                         )}
-                    </button>
+                        Explanation of missing data mechanisms
+                    </div>
                     
-                    {expandedSections.mechanisms && (
-                        <div className="px-6 pb-6 space-y-4 text-gray-700 rounded-b-lg">
+                    <div
+                        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                            expandedSections.mechanisms
+                                ? "max-h-screen opacity-100"
+                                : "max-h-0 opacity-0"
+                        }`}
+                    >
+                        <div className="space-y-4 text-gray-700">
                             <p>
                                 Missing data occur for different reasons. Statistically, they are classified by three different missing data mechanisms:
                             </p>
@@ -110,27 +114,31 @@ const MissingDataMechanismPage: React.FC = () => {
                                 The MCAR assumption can be empirically tested using Little's MCAR test. However, the MAR and MNAR mechanisms are impossible to verify because they depend on unobserved data. Deciding how probable the data are to be MNAR often requires domain knowledge.
                             </p>
                         </div>
-                    )}
+                    </div>
                 </div>
 
                 {/* Explanation of Little's MCAR test */}
-                <div className="bg-white rounded-lg shadow-sm border mb-8">
-                    <button
+                <div className="bg-white rounded-2xl shadow-sm border p-4 mb-8">
+                    <div
+                        className="text-lg font-semibold mb-4 flex items-center gap-2 cursor-pointer hover:bg-gray-50 -m-2 p-2 rounded-lg transition-colors duration-200"
                         onClick={() => toggleSection('littleTest')}
-                        className={`w-full p-6 text-left flex items-center justify-between hover:bg-gray-50 transition-colors ${
-                            expandedSections.littleTest ? 'rounded-t-lg' : 'rounded-lg'
-                        }`}
                     >
-                        <h2 className="text-xl font-semibold">Explanation of Little's MCAR test</h2>
                         {expandedSections.littleTest ? (
                             <KeyboardArrowDownIcon className="text-gray-600" />
                         ) : (
                             <KeyboardArrowRightIcon className="text-gray-600" />
                         )}
-                    </button>
+                        Explanation of Little's MCAR test
+                    </div>
                     
-                    {expandedSections.littleTest && (
-                        <div className="px-6 pb-6 space-y-4 text-gray-700 rounded-b-lg">
+                    <div
+                        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                            expandedSections.littleTest
+                                ? "max-h-screen opacity-100"
+                                : "max-h-0 opacity-0"
+                        }`}
+                    >
+                        <div className="space-y-4 text-gray-700">
                             <p>
                                 Little's MCAR test helps to assess whether data is MCAR. If p-value &ge; 0.05, data is considered MCAR. If p-value &lt; 0.05, data is considered MAR or MNAR. For more details of the test, check out the original paper: Little, R. J. (1988). A test of missing completely at random for multivariate data with missing values. Journal of the American statistical Association, 83(404), 1198–1202.
                             </p>
@@ -152,7 +160,7 @@ const MissingDataMechanismPage: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                    )}
+                    </div>
                 </div>
 
                 {/* Back button at bottom like question pages */}

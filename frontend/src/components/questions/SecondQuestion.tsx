@@ -8,12 +8,28 @@ interface SecondQuestionProps {
         na: boolean;
         other: boolean;
         otherText: string;
+        featureSpecific?: {
+            [featureName: string]: {
+                blanks: boolean;
+                na: boolean;
+                other: boolean;
+                otherText: string;
+            };
+        };
     };
     setMissingDataOptions: (opts: {
         blanks: boolean;
         na: boolean;
         other: boolean;
         otherText: string;
+        featureSpecific?: {
+            [featureName: string]: {
+                blanks: boolean;
+                na: boolean;
+                other: boolean;
+                otherText: string;
+            };
+        };
     }) => void;
     featureNames: boolean;
     onBack: () => void;
@@ -60,6 +76,16 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         blanks: boolean;
         na: boolean;
     } | null>({blanks: false, na: false});
+    const [availableFeatures, setAvailableFeatures] = useState<string[]>([]);
+    const [selectedFeature, setSelectedFeature] = useState<string>("");
+    const [featureSpecificOptions, setFeatureSpecificOptions] = useState<{
+        [featureName: string]: {
+            blanks: boolean;
+            na: boolean;
+            other: boolean;
+            otherText: string;
+        };
+    }>({});
 
     useEffect(() => {
         axios.get("/api/detect-missing-data-options").then((res) => {
@@ -75,6 +101,11 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                 });
             }
         });
+        
+        // Fetch available feature names from dataset preview
+        if (datasetPreview && datasetPreview.title_row) {
+            setAvailableFeatures(datasetPreview.title_row);
+        }
     }, []);
 
     // Fetch dataset preview from backend
@@ -111,6 +142,12 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         }
     }, [datasetPreview]);
 
+    useEffect(() => {
+        if (datasetPreview && datasetPreview.title_row) {
+            setAvailableFeatures(datasetPreview.title_row);
+        }
+    }, [datasetPreview]);
+
     const fetchLivePreview = async (
         opts: typeof missingDataOptions,
         showLoading: boolean
@@ -118,8 +155,12 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         if (showLoading) setIsLoadingPreview(true);
         try {
             const formData = new FormData();
-            formData.append("missingDataOptions", JSON.stringify(opts));
-            formData.append("featureNames", featureNames ? "true" : "false"); // Pass current featureNames value
+            const optionsWithFeatureSpecific = {
+                ...opts,
+                featureSpecific: featureSpecificOptions
+            };
+            formData.append("missingDataOptions", JSON.stringify(optionsWithFeatureSpecific));
+            formData.append("featureNames", featureNames ? "true" : "false");
             const response = await axios.post(
                 "/api/dataset-preview-live",
                 formData,
@@ -219,6 +260,62 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         }
     };
 
+    const handleAddFeature = () => {
+        if (!selectedFeature || featureSpecificOptions[selectedFeature]) return;
+        
+        setFeatureSpecificOptions({
+            ...featureSpecificOptions,
+            [selectedFeature]: {
+                blanks: false,
+                na: false,
+                other: false,
+                otherText: ""
+            }
+        });
+        setSelectedFeature("");
+    };
+
+    const handleRemoveFeature = (featureName: string) => {
+        const newOptions = { ...featureSpecificOptions };
+        delete newOptions[featureName];
+        setFeatureSpecificOptions(newOptions);
+    };
+
+    const handleFeatureSpecificCheckbox = (featureName: string, key: "blanks" | "na" | "other") => {
+        const newFeatureOptions = {
+            ...featureSpecificOptions,
+            [featureName]: {
+                ...featureSpecificOptions[featureName],
+                [key]: !featureSpecificOptions[featureName][key],
+                ...(key === "other" && !featureSpecificOptions[featureName].other
+                    ? { otherText: "" }
+                    : {}),
+            }
+        };
+        setFeatureSpecificOptions(newFeatureOptions);
+        
+        // Update live preview
+        setIsLoadingPreview(true);
+        fetchLivePreview(missingDataOptions, false);
+    };
+
+    const handleFeatureSpecificOtherText = (featureName: string, value: string) => {
+        const newFeatureOptions = {
+            ...featureSpecificOptions,
+            [featureName]: {
+                ...featureSpecificOptions[featureName],
+                otherText: value
+            }
+        };
+        setFeatureSpecificOptions(newFeatureOptions);
+        
+        // Update live preview on comma or blur
+        if (value.includes(",")) {
+            setIsLoadingPreview(true);
+            fetchLivePreview(missingDataOptions, false);
+        }
+    };
+
     const canProceed =
         missingDataOptions.blanks ||
         missingDataOptions.na ||
@@ -231,9 +328,13 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         setIsSubmitting(true);
         try {
             const formData = new FormData();
+            const optionsWithFeatureSpecific = {
+                ...missingDataOptions,
+                featureSpecific: featureSpecificOptions
+            };
             formData.append(
                 "missingDataOptions",
-                JSON.stringify(missingDataOptions)
+                JSON.stringify(optionsWithFeatureSpecific)
             );
 
             const response = await axios.post(
@@ -436,9 +537,8 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                 )}
 
                 <div className="mb-6 mt-8">
-                    <label className="block text-lg font-medium mb-2">
-                        How is missing data represented in this dataset? You can
-                        select multiple answers.
+                    <label className="block text-lg font-medium mb-4">
+                        Apply to all features
                     </label>
                     <div className="flex flex-col gap-2 mb-2">
                         <label className="flex items-center gap-2 cursor-pointer">
@@ -478,6 +578,82 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                     <div className="text-xs text-gray-500 mt-1 mb-2">
                         (Separate by commas if more than one answer.)
                     </div>
+                </div>
+
+                <div className="mb-6 mt-8">
+                    <label className="block text-lg font-medium mb-4">
+                        Apply to specific features
+                    </label>
+                    <div className="flex items-center gap-2 mb-4">
+                        <select
+                            value={selectedFeature}
+                            onChange={(e) => setSelectedFeature(e.target.value)}
+                            className="border rounded px-3 py-2 text-sm min-w-[200px]"
+                        >
+                            <option value="">Select a feature...</option>
+                            {availableFeatures
+                                .filter(feature => !featureSpecificOptions[feature])
+                                .map(feature => (
+                                    <option key={feature} value={feature}>{feature}</option>
+                                ))
+                            }
+                        </select>
+                        <button
+                            onClick={handleAddFeature}
+                            disabled={!selectedFeature || featureSpecificOptions[selectedFeature]}
+                            className="px-4 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                        >
+                            Add feature
+                        </button>
+                    </div>
+                    
+                    {Object.entries(featureSpecificOptions).map(([featureName, options]) => (
+                        <div key={featureName} className="border rounded p-4 mb-4 bg-gray-50">
+                            <div className="flex items-center justify-between mb-3">
+                                <h4 className="font-medium text-gray-800">{featureName}</h4>
+                                <button
+                                    onClick={() => handleRemoveFeature(featureName)}
+                                    className="text-red-500 hover:text-red-700 text-sm cursor-pointer"
+                                >
+                                    Remove
+                                </button>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={options.blanks}
+                                        onChange={() => handleFeatureSpecificCheckbox(featureName, "blanks")}
+                                    />
+                                    <span>Blanks ({detectedMissing?.blanks ? "(Auto-Detected)" : ""})</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={options.na}
+                                        onChange={() => handleFeatureSpecificCheckbox(featureName, "na")}
+                                    />
+                                    <span>N/A</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={options.other}
+                                        onChange={() => handleFeatureSpecificCheckbox(featureName, "other")}
+                                    />
+                                    <span>Other:</span>
+                                    <input
+                                        type="text"
+                                        className="border rounded px-2 py-1 text-sm min-w-[180px] italic"
+                                        placeholder="Please Indicate"
+                                        value={options.otherText}
+                                        onChange={(e) => handleFeatureSpecificOtherText(featureName, e.target.value)}
+                                        disabled={!options.other}
+                                    />
+                                </label>
+                            </div>
+                        </div>
+                    ))}
                 </div>
                 <div className="mb-6 mt-8">
                     <div className="text-gray-500 text-sm mb-2">

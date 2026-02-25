@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 interface DropdownProps {
@@ -21,6 +21,30 @@ const Dropdown: React.FC<DropdownProps> = ({
     style = {}
 }) => {
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const [adjustedPosition, setAdjustedPosition] = useState(position);
+
+    // Update position on scroll
+    useEffect(() => {
+        if (!isOpen || !position) return;
+
+        const updatePosition = () => {
+            setAdjustedPosition(position);
+        };
+
+        const handleScroll = () => {
+            updatePosition();
+        };
+
+        // Initial position
+        updatePosition();
+
+        // Listen for scroll events on all scrollable containers
+        window.addEventListener('scroll', handleScroll, true);
+        
+        return () => {
+            window.removeEventListener('scroll', handleScroll, true);
+        };
+    }, [isOpen, position]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -62,21 +86,22 @@ const Dropdown: React.FC<DropdownProps> = ({
         };
     }, [isOpen, onClose, buttonPosition]);
 
-    if (!isOpen || !position) {
+    if (!isOpen || !adjustedPosition) {
         return null;
     }
 
     return (
         <div 
             ref={dropdownRef}
-            className={`fixed z-50 bg-white border border-gray-200 rounded-md shadow-lg ${className}`}
+            className={`fixed z-40 bg-white border border-gray-200 rounded-md shadow-lg ${className}`}
             style={{
-                left: `${position.x}px`,
-                top: `${position.y}px`,
+                left: `${adjustedPosition.x}px`,
+                top: `${adjustedPosition.y}px`,
                 transform: 'translateX(-50%)',
                 minWidth: '180px',
                 ...style
             }}
+            data-dropdown
         >
             {children}
         </div>

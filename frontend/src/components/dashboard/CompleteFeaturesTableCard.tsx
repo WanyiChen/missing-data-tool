@@ -42,6 +42,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
     onInfoClick,
     defaultExpanded,
 }) => {
+    const tableContainerRef = React.useRef<HTMLDivElement>(null);
     const [isExpanded, setIsExpanded] = useState(defaultExpanded || false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -214,6 +215,70 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
     const handleCorrelationFilterChange = (newFilter: CorrelationFilter) => {
         setCorrelationFilter(newFilter);
     };
+
+    // Add scroll listener to reposition dropdowns when scrolling
+    useEffect(() => {
+        const container = tableContainerRef.current;
+        if (!container) return;
+
+        const handleScroll = () => {
+            if (openDataTypeFilterDropdown) {
+                const btn = container.querySelector('[data-dropdown-trigger="datatype-filter"]');
+                if (btn) {
+                    const rect = btn.getBoundingClientRect();
+                    setDataTypeFilterPosition({ x: rect.left + rect.width / 2, y: rect.bottom + 5 });
+                }
+            }
+            if (openCorrelationFilterDropdown) {
+                const btn = container.querySelector('[data-dropdown-trigger="correlation-filter"]');
+                if (btn) {
+                    const rect = btn.getBoundingClientRect();
+                    setCorrelationFilterPosition({ x: rect.left + rect.width / 2, y: rect.bottom + 5 });
+                }
+            }
+            if (openCorrelationDetailsDropdown) {
+                const btn = container.querySelector(`[data-dropdown-trigger="correlation-details-${openCorrelationDetailsDropdown}"]`);
+                if (btn) {
+                    const rect = btn.getBoundingClientRect();
+                    setCorrelationDetailsPosition({ x: rect.left + rect.width / 2, y: rect.bottom + 5 });
+                }
+            }
+            if (openDataTypeDropdown) {
+                const btn = container.querySelector(`[data-dropdown-trigger="datatype-${openDataTypeDropdown}"]`);
+                if (btn) {
+                    const rect = btn.getBoundingClientRect();
+                    setDataTypeDropdownPosition({ x: rect.left + rect.width / 2, y: rect.top - 10 });
+                }
+            }
+        };
+
+        container.addEventListener('scroll', handleScroll);
+        window.addEventListener('scroll', handleScroll);
+        return () => {
+            container.removeEventListener('scroll', handleScroll);
+            window.removeEventListener('scroll', handleScroll);
+        };
+    }, [openDataTypeFilterDropdown, openCorrelationFilterDropdown, openCorrelationDetailsDropdown, openDataTypeDropdown]);
+
+    // Add click outside listener to close dropdowns
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as Element;
+            
+            // Don't close if clicking on dropdown content or buttons
+            if (target && target.closest('[data-dropdown]')) {
+                return;
+            }
+            
+            closeDataTypeDropdown();
+            closeDataTypeFilterDropdown();
+            closeCorrelationFilterDropdown();
+            closeCorrelationDetailsDropdown();
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const toggleCorrelationDetailsDropdown = (
         featureName: string,
@@ -740,7 +805,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
 
     return (
         <div>
-        <div className="rounded-2xl border bg-white shadow-sm p-6 w-full">
+        <div className="rounded-2xl border bg-white shadow-sm p-4 w-full">
             {/* Header Section */}
             <div
                 className="text-lg font-semibold mb-4 flex items-center gap-2 cursor-pointer hover:bg-gray-50 -m-2 p-2 rounded-lg transition-colors duration-200"
@@ -847,7 +912,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                         </div>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto max-h-96 overflow-y-auto border rounded-lg">
+                    <div ref={tableContainerRef} className="overflow-x-auto max-h-96 overflow-y-auto border rounded-lg">
                         <table className="w-full text-sm">
                             {/* <thead className="sticky top-0 bg-white z-10 after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-gray-700">
                                 <tr> */}
@@ -874,6 +939,8 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                                                     );
                                                 }}
                                                 className={`group transition-colors duration-100 cursor-pointer p-1 rounded hover:bg-gray-200`}
+                                                data-dropdown
+                                                data-dropdown-trigger="datatype-filter"
                                             >
                                                 <FilterListIcon
                                                     fontSize="small"
@@ -907,6 +974,8 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                                                     );
                                                 }}
                                                 className={`group transition-colors duration-100 cursor-pointer p-1 rounded hover:bg-gray-200`}
+                                                data-dropdown
+                                                data-dropdown-trigger="correlation-filter"
                                             >
                                                 <FilterListIcon
                                                     fontSize="small"
@@ -935,6 +1004,8 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                                                         )
                                                     }
                                                     className="inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-medium bg-blue-500 text-white hover:bg-blue-600 hover:scale-105 transition-all duration-200 cursor-pointer"
+                                                    data-dropdown
+                                                    data-dropdown-trigger={`datatype-${feature.feature_name}`}
                                                 >
                                                     {getDataTypeDisplay(
                                                         feature.data_type
@@ -942,7 +1013,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                                                 </button>
                                             </td>
                                             <td className="text-center py-3 px-2 border">
-                                                <span className="text-blue-600">
+                                                <span className="text-black">
                                                     {feature.feature_name}
                                                 </span>
                                             </td>
@@ -997,6 +1068,8 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                                                                         );
                                                                     }}
                                                                     className="ml-1 text-gray-400 hover:text-gray-600 transition-colors duration-200 cursor-pointer"
+                                                                    data-dropdown
+                                                                    data-dropdown-trigger={`correlation-details-${feature.feature_name}`}
                                                                 >
                                                                     <ArrowDropDownIcon fontSize="small" />
                                                                 </button>

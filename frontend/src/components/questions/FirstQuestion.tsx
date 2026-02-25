@@ -205,7 +205,7 @@ const FirstQuestion: React.FC<FirstQuestionProps> = ({
                 <div className="flex justify-between mt-8">
                     <button
                         className={`${styles.button} ${styles.secondary}`}
-                        onClick={() => navigate("/")}
+                        onClick={() => window.location.href = "/"}
                         disabled={isSubmitting}
                         style={{ minWidth: 80 }}
                     >

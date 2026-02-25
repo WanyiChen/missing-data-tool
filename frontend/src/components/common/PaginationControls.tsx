@@ -31,7 +31,7 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
                 <button
                     onClick={() => onPageChange(pagination.page - 1, pagination.limit)}
                     disabled={!pagination.has_prev || loading}
-                    className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                     Previous
                 </button>
@@ -41,7 +41,7 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
                 <button
                     onClick={() => onPageChange(pagination.page + 1, pagination.limit)}
                     disabled={!pagination.has_next || loading}
-                    className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-1 text-sm border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                     Next
                 </button>
@@ -49,7 +49,7 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
                     value={pagination.limit}
                     onChange={(e) => onPageChange(0, parseInt(e.target.value))}
                     disabled={loading}
-                    className="text-sm border rounded px-2 py-1 disabled:opacity-50"
+                    className="text-sm border rounded px-2 py-1 disabled:opacity-50 cursor-pointer"
                 >
                     <option value={10}>10 per page</option>
                     <option value={25}>25 per page</option>
