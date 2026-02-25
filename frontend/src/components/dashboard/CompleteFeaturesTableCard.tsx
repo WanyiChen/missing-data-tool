@@ -805,7 +805,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
 
     return (
         <div>
-        <div className="rounded-2xl border bg-white shadow-sm p-6 w-full">
+        <div className="rounded-2xl border bg-white shadow-sm p-4 w-full">
             {/* Header Section */}
             <div
                 className="text-lg font-semibold mb-4 flex items-center gap-2 cursor-pointer hover:bg-gray-50 -m-2 p-2 rounded-lg transition-colors duration-200"
