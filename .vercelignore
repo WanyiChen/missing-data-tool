@@ -1,0 +1,7 @@
+pnpm-lock.yaml
+node_modules
+.env
+.env.local
+.env.production.local
+.env.development.local
+*.log

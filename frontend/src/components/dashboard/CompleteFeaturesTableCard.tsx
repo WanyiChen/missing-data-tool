@@ -805,7 +805,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
 
     return (
         <div>
-        <div className="rounded-2xl border bg-white shadow-sm p-4 w-full">
+        <div className="rounded-2xl border bg-white shadow-sm p-3 w-full">
             {/* Header Section */}
             <div
                 className="text-lg font-semibold mb-4 flex items-center gap-2 cursor-pointer hover:bg-gray-50 -m-2 p-2 rounded-lg transition-colors duration-200"
@@ -912,7 +912,14 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                         </div>
                     </div>
                 ) : (
+                    <div>
+                        <div className="mb-4 text-sm text-gray-600">
+                            Data types are auto-detected. Please click to change if necessary.
+                        </div>
+                    
                     <div ref={tableContainerRef} className="overflow-x-auto max-h-96 overflow-y-auto border rounded-lg">
+
+                        
                         <table className="w-full text-sm">
                             {/* <thead className="sticky top-0 bg-white z-10 after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-gray-700">
                                 <tr> */}
@@ -925,7 +932,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                                                 text={"Data Type"}
                                                 onClick={() => {
                                                     onInfoClick?.(
-                                                        'Data types are auto-detected. If the auto-detection is wrong, click on the letter to change data type.\n Numerical data are numbers representing measurable quantities, such as a person\'s age and income. Categorical data are labels describing different characteristics. Categorical data has two subcategories - nominal data and ordinal data. Nominal data have no inherent order among the categories, such as a person\'s gender and hometown. Ordinal data are labels with inherent orders, such as student grades where "A" is considered better than "B."'
+                                                        'Data types are auto-detected. If the auto-detection is wrong, click to change data type.\n Numerical data are numbers representing measurable quantities, such as a person\'s age and income. Categorical data are labels describing different characteristics. Categorical data has two subcategories - nominal data and ordinal data. Nominal data have no inherent order among the categories, such as a person\'s gender and hometown. Ordinal data are labels with inherent orders, such as student grades where "A" is considered better than "B."'
                                                     );
                                                 }}
                                             />
@@ -1092,6 +1099,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                                 )}
                             </tbody>
                         </table>
+                    </div>
                     </div>
                 )}            
             
