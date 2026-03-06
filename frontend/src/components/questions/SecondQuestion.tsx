@@ -40,6 +40,8 @@ interface SecondQuestionProps {
 interface DatasetPreview {
     title_row: string[];
     data_rows: any[][];
+    original_data_rows?: any[][];
+    missing_mask?: boolean[][];
 }
 
 const SecondQuestion: React.FC<SecondQuestionProps> = ({
@@ -79,6 +81,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
     const [availableFeatures, setAvailableFeatures] = useState<string[]>([]);
     const [selectedFeature, setSelectedFeature] = useState<string>("");
     const [specificFeatureText, setSpecificFeatureText] = useState<string>("");
+
     const [featureSpecificOptions, setFeatureSpecificOptions] = useState<{
         [featureName: string]: {
             blanks: boolean;
@@ -126,6 +129,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         missingDataOptions.na,
         missingDataOptions.other,
         missingDataOptions.otherText,
+        featureSpecificOptions,
     ]);
 
     useEffect(() => {
@@ -158,7 +162,14 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
             const formData = new FormData();
             const optionsWithFeatureSpecific = {
                 ...opts,
-                featureSpecific: featureSpecificOptions
+                other: false, // Don't send "other" to backend to preserve original values
+                otherText: "",
+                featureSpecific: Object.fromEntries(
+                    Object.entries(featureSpecificOptions).map(([key, value]) => [
+                        key,
+                        { ...value, other: false, otherText: "" } // Don't send "other" to backend
+                    ])
+                )
             };
             formData.append("missingDataOptions", JSON.stringify(optionsWithFeatureSpecific));
             formData.append("featureNames", featureNames ? "true" : "false");
@@ -276,18 +287,44 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         setFeatureSpecificOptions(newFeatureOptions);
         setSelectedFeature("");
         setSpecificFeatureText("");
-
-        setIsLoadingPreview(true);
-        fetchLivePreview(missingDataOptions, false);
     };
 
     const handleRemoveFeature = (featureName: string) => {
         const newOptions = { ...featureSpecificOptions };
         delete newOptions[featureName];
         setFeatureSpecificOptions(newOptions);
+    };
 
-        setIsLoadingPreview(true);
-        fetchLivePreview(missingDataOptions, false);
+    const handleFeatureSpecificOtherText = (featureName: string, value: string) => {
+        const newFeatureOptions = {
+            ...featureSpecificOptions,
+            [featureName]: {
+                ...featureSpecificOptions[featureName],
+                otherText: value
+            }
+        };
+        setFeatureSpecificOptions(newFeatureOptions);
+    };
+
+    const isCellMissing = (cell: any, columnIndex: number) => {
+        if (cell === null || cell === undefined) return true;
+        
+        const featureName = datasetPreview?.title_row[columnIndex];
+        const featureOptions = featureName ? featureSpecificOptions[featureName] : null;
+        
+        // Check feature-specific "other" values
+        if (featureOptions?.other && featureOptions.otherText) {
+            const otherValues = featureOptions.otherText.split(",").map(v => v.trim().toLowerCase());
+            if (otherValues.includes(String(cell).toLowerCase())) return true;
+        }
+        
+        // Check global "other" values
+        if (missingDataOptions.other && missingDataOptions.otherText) {
+            const otherValues = missingDataOptions.otherText.split(",").map(v => v.trim().toLowerCase());
+            if (otherValues.includes(String(cell).toLowerCase())) return true;
+        }
+        
+        return false;
     };
 
     const canProceed =
@@ -396,10 +433,10 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                         </span>
                     </div>
 
-                    <p className="text-sm text-gray-600 mt-4 mb-3">
+                    <p className="text-sm text-black-600 mt-4 mb-3">
                         For example, if you select &ldquo;blanks&rdquo; above, all the blanks in the dataset will be recognized as missing data.
                     </p>
-                    <p className="text-sm text-gray-600 mb-4">
+                    <p className="text-sm text-black-600 mb-4">
                         Sometimes, some features may have specific codes for representing missingness. For example, &ldquo;99&rdquo; might mean missing or unknown in one feature but be a valid value in other features. If that is the case, please specify the feature-specific codes of missingness below. If you are unsure whether your dataset has any feature-specific codes, please check your dataset&rsquo;s documentation.
                     </p>
 
@@ -446,6 +483,13 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                                 <div key={featureName} className="flex items-center gap-3 text-sm">
                                     <span className="font-medium text-gray-700">{featureName}:</span>
                                     <span className="text-gray-600 italic">{options.otherText}</span>
+                                    <input
+                                        type="text"
+                                        className="border rounded px-2 py-1 text-xs min-w-[120px] italic"
+                                        placeholder="edit values"
+                                        value={options.otherText}
+                                        onChange={(e) => handleFeatureSpecificOtherText(featureName, e.target.value)}
+                                    />
                                     <button
                                         onClick={() => handleRemoveFeature(featureName)}
                                         className="text-gray-400 hover:text-red-500 text-xs cursor-pointer"
@@ -490,16 +534,12 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                                                 <td
                                                     key={j}
                                                     className={`px-3 py-2 border text-xs text-gray-800 whitespace-nowrap border-b-2 border-gray-300 ${
-                                                        cell === null ||
-                                                        cell === undefined
+                                                        isCellMissing(cell, j)
                                                             ? "bg-red-100 border-red-200 text-red-600 font-semibold"
                                                             : ""
                                                     }`}
                                                 >
-                                                    {cell === null ||
-                                                    cell === undefined
-                                                        ? ""
-                                                        : String(cell)}
+                                                    {cell === null || cell === undefined ? "" : String(cell)}
                                                 </td>
                                             ))}
                                         </tr>
