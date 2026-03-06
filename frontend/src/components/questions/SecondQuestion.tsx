@@ -78,6 +78,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
     } | null>({blanks: false, na: false});
     const [availableFeatures, setAvailableFeatures] = useState<string[]>([]);
     const [selectedFeature, setSelectedFeature] = useState<string>("");
+    const [specificFeatureText, setSpecificFeatureText] = useState<string>("");
     const [featureSpecificOptions, setFeatureSpecificOptions] = useState<{
         [featureName: string]: {
             blanks: boolean;
@@ -260,60 +261,33 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         }
     };
 
-    const handleAddFeature = () => {
-        if (!selectedFeature || featureSpecificOptions[selectedFeature]) return;
-        
-        setFeatureSpecificOptions({
+    const handleApplyFeatureSpecific = () => {
+        if (!selectedFeature || !specificFeatureText.trim()) return;
+
+        const newFeatureOptions = {
             ...featureSpecificOptions,
             [selectedFeature]: {
                 blanks: false,
                 na: false,
-                other: false,
-                otherText: ""
-            }
-        });
+                other: true,
+                otherText: specificFeatureText.trim(),
+            },
+        };
+        setFeatureSpecificOptions(newFeatureOptions);
         setSelectedFeature("");
+        setSpecificFeatureText("");
+
+        setIsLoadingPreview(true);
+        fetchLivePreview(missingDataOptions, false);
     };
 
     const handleRemoveFeature = (featureName: string) => {
         const newOptions = { ...featureSpecificOptions };
         delete newOptions[featureName];
         setFeatureSpecificOptions(newOptions);
-    };
 
-    const handleFeatureSpecificCheckbox = (featureName: string, key: "blanks" | "na" | "other") => {
-        const newFeatureOptions = {
-            ...featureSpecificOptions,
-            [featureName]: {
-                ...featureSpecificOptions[featureName],
-                [key]: !featureSpecificOptions[featureName][key],
-                ...(key === "other" && !featureSpecificOptions[featureName].other
-                    ? { otherText: "" }
-                    : {}),
-            }
-        };
-        setFeatureSpecificOptions(newFeatureOptions);
-        
-        // Update live preview
         setIsLoadingPreview(true);
         fetchLivePreview(missingDataOptions, false);
-    };
-
-    const handleFeatureSpecificOtherText = (featureName: string, value: string) => {
-        const newFeatureOptions = {
-            ...featureSpecificOptions,
-            [featureName]: {
-                ...featureSpecificOptions[featureName],
-                otherText: value
-            }
-        };
-        setFeatureSpecificOptions(newFeatureOptions);
-        
-        // Update live preview on comma or blur
-        if (value.includes(",")) {
-            setIsLoadingPreview(true);
-            fetchLivePreview(missingDataOptions, false);
-        }
     };
 
     const canProceed =
@@ -375,179 +349,22 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                     </span>
                 </div>
 
-                {/* Missing Data Detection Section */}
-                {backendAnalysis && backendAnalysis.missing_cells > 0 && (
-                    <div className="mb-6 mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <h3 className="text-lg font-semibold text-blue-800 mb-2">
-                            Missing Data Detected
-                        </h3>
-                        <p className="text-blue-700 text-sm mb-3">
-                            We found {backendAnalysis.missing_cells} missing
-                            values in your dataset with the following patterns:
-                        </p>
-                        <div className="grid grid-cols-2 gap-4 text-sm">
-                            {backendAnalysis.missing_patterns.empty_strings >
-                                0 && (
-                                <div className="flex items-center gap-2">
-                                    <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
-                                    <span className="text-blue-800">
-                                        Empty strings:{" "}
-                                        {
-                                            backendAnalysis.missing_patterns
-                                                .empty_strings
-                                        }
-                                    </span>
-                                </div>
-                            )}
-                            {backendAnalysis.missing_patterns.null_values >
-                                0 && (
-                                <div className="flex items-center gap-2">
-                                    <span className="w-3 h-3 bg-red-500 rounded-full"></span>
-                                    <span className="text-red-800">
-                                        Null values:{" "}
-                                        {
-                                            backendAnalysis.missing_patterns
-                                                .null_values
-                                        }
-                                    </span>
-                                </div>
-                            )}
-                            {backendAnalysis.missing_patterns.whitespace_only >
-                                0 && (
-                                <div className="flex items-center gap-2">
-                                    <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-                                    <span className="text-green-800">
-                                        Whitespace-only:{" "}
-                                        {
-                                            backendAnalysis.missing_patterns
-                                                .whitespace_only
-                                        }
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Backend Analysis Section */}
-                        {backendAnalysis && (
-                            <div className="mt-4 pt-4 border-t border-blue-200">
-                                <h4 className="text-sm font-semibold text-blue-800 mb-2">
-                                    Detailed Analysis
-                                </h4>
-                                <div className="grid grid-cols-3 gap-4 text-xs">
-                                    <div className="bg-white p-2 rounded border">
-                                        <div className="font-semibold text-blue-800">
-                                            Total Missing
-                                        </div>
-                                        <div className="text-lg font-bold text-blue-600">
-                                            {backendAnalysis.missing_cells}
-                                        </div>
-                                        <div className="text-gray-500">
-                                            (
-                                            {backendAnalysis.missing_percentage}
-                                            %)
-                                        </div>
-                                    </div>
-                                    <div className="bg-white p-2 rounded border">
-                                        <div className="font-semibold text-red-800">
-                                            Null Values
-                                        </div>
-                                        <div className="text-lg font-bold text-red-600">
-                                            {
-                                                backendAnalysis.missing_patterns
-                                                    .null_values
-                                            }
-                                        </div>
-                                        <div className="text-gray-500">
-                                            (
-                                            {
-                                                backendAnalysis
-                                                    .pattern_percentages
-                                                    .null_percentage
-                                            }
-                                            %)
-                                        </div>
-                                    </div>
-                                    <div className="bg-white p-2 rounded border">
-                                        <div className="font-semibold text-green-800">
-                                            Empty Strings
-                                        </div>
-                                        <div className="text-lg font-bold text-green-600">
-                                            {
-                                                backendAnalysis.missing_patterns
-                                                    .empty_strings
-                                            }
-                                        </div>
-                                        <div className="text-gray-500">
-                                            (
-                                            {
-                                                backendAnalysis
-                                                    .pattern_percentages
-                                                    .empty_string_percentage
-                                            }
-                                            %)
-                                        </div>
-                                    </div>
-                                </div>
-                                {backendAnalysis.columns_with_missing &&
-                                    Object.keys(
-                                        backendAnalysis.columns_with_missing
-                                    ).length > 0 && (
-                                        <div className="mt-3">
-                                            <div className="text-xs font-semibold text-blue-800 mb-1">
-                                                Columns with missing data:
-                                            </div>
-                                            <div className="text-xs text-blue-700">
-                                                {Object.entries(
-                                                    backendAnalysis.columns_with_missing
-                                                )
-                                                    .slice(0, 3)
-                                                    .map(([col, count]) => (
-                                                        <span
-                                                            key={col}
-                                                            className="inline-block bg-blue-100 px-2 py-1 rounded mr-2 mb-1"
-                                                        >
-                                                            {col}: {count}
-                                                        </span>
-                                                    ))}
-                                                {Object.keys(
-                                                    backendAnalysis.columns_with_missing
-                                                ).length > 3 && (
-                                                    <span className="text-gray-500">
-                                                        +
-                                                        {Object.keys(
-                                                            backendAnalysis.columns_with_missing
-                                                        ).length - 3}{" "}
-                                                        more
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {loadingAnalysis && (
-                    <div className="mt-4 pt-4 border-t border-blue-200">
-                        <div className="text-xs text-blue-600">
-                            Loading detailed analysis...
-                        </div>
-                    </div>
-                )}
-
                 <div className="mb-6 mt-8">
-                    <label className="block text-lg font-medium mb-4">
-                        Apply to all features
-                    </label>
-                    <div className="flex flex-col gap-2 mb-2">
+                    <p className="text-base font-medium mb-4">
+                        How is missing data represented in this dataset?
+                    </p>
+
+                    <div className="text-sm mb-2">
+                        Apply to all features (you can select multiple answers):
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-1">
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input
                                 type="checkbox"
                                 checked={missingDataOptions.blanks}
                                 onChange={() => handleCheckbox("blanks")}
                             />
-                            <span>Blanks {detectedMissing?.blanks ? "(Auto-Detected)" : ""}</span>
+                            <span className="text-sm">Blanks{detectedMissing?.blanks ? " (auto-detected)" : ""}</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -555,7 +372,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                                 checked={missingDataOptions.na}
                                 onChange={() => handleCheckbox("na")}
                             />
-                            <span>N/A {detectedMissing?.na ? "(Auto-Detected)" : ""}</span>
+                            <span className="text-sm">N/A{detectedMissing?.na ? " (auto-detected)" : ""}</span>
                         </label>
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -563,98 +380,84 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                                 checked={missingDataOptions.other}
                                 onChange={() => handleCheckbox("other")}
                             />
-                            <span>Other:</span>
-                            <input
-                                type="text"
-                                className="border rounded px-2 py-1 text-sm min-w-[180px] italic"
-                                placeholder="Please Indicate"
-                                value={missingDataOptions.otherText}
-                                onChange={handleOtherText}
-                                onBlur={handleOtherTextBlur}
-                                disabled={!missingDataOptions.other}
-                            />
+                            <span className="text-sm">Other:</span>
                         </label>
+                        <input
+                            type="text"
+                            className="border rounded px-2 py-1 text-sm min-w-[160px] italic"
+                            placeholder="please indicate"
+                            value={missingDataOptions.otherText}
+                            onChange={handleOtherText}
+                            onBlur={handleOtherTextBlur}
+                            disabled={!missingDataOptions.other}
+                        />
+                        <span className="text-xs text-gray-500">
+                            (Separate by commas if more than one answer.)
+                        </span>
                     </div>
-                    <div className="text-xs text-gray-500 mt-1 mb-2">
-                        (Separate by commas if more than one answer.)
-                    </div>
-                </div>
 
-                <div className="mb-6 mt-8">
-                    <label className="block text-lg font-medium mb-4">
-                        Apply to specific features
-                    </label>
-                    <div className="flex items-center gap-2 mb-4">
+                    <p className="text-sm text-gray-600 mt-4 mb-3">
+                        For example, if you select &ldquo;blanks&rdquo; above, all the blanks in the dataset will be recognized as missing data.
+                    </p>
+                    <p className="text-sm text-gray-600 mb-4">
+                        Sometimes, some features may have specific codes for representing missingness. For example, &ldquo;99&rdquo; might mean missing or unknown in one feature but be a valid value in other features. If that is the case, please specify the feature-specific codes of missingness below. If you are unsure whether your dataset has any feature-specific codes, please check your dataset&rsquo;s documentation.
+                    </p>
+
+                    <div className="text-sm mb-2">
+                        Apply to specific features:
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
                         <select
                             value={selectedFeature}
                             onChange={(e) => setSelectedFeature(e.target.value)}
-                            className="border rounded px-3 py-2 text-sm min-w-[200px]"
+                            className="border rounded px-3 py-2 text-sm min-w-[160px]"
                         >
-                            <option value="">Select a feature...</option>
+                            <option value="">Select feature</option>
                             {availableFeatures
-                                .filter(feature => !featureSpecificOptions[feature])
-                                .map(feature => (
-                                    <option key={feature} value={feature}>{feature}</option>
+                                .filter(f => !featureSpecificOptions[f])
+                                .map(f => (
+                                    <option key={f} value={f}>{f}</option>
                                 ))
                             }
                         </select>
+                        <input
+                            type="text"
+                            className="border rounded px-2 py-2 text-sm min-w-[160px] italic"
+                            placeholder="please indicate"
+                            value={specificFeatureText}
+                            onChange={(e) => setSpecificFeatureText(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") handleApplyFeatureSpecific(); }}
+                        />
                         <button
-                            onClick={handleAddFeature}
-                            disabled={!selectedFeature || featureSpecificOptions[selectedFeature]}
-                            className="px-4 py-2 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                            onClick={handleApplyFeatureSpecific}
+                            disabled={!selectedFeature || !specificFeatureText.trim()}
+                            className="px-4 py-2 border border-gray-400 rounded text-sm hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                         >
-                            Add feature
+                            Apply
                         </button>
                     </div>
-                    
-                    {Object.entries(featureSpecificOptions).map(([featureName, options]) => (
-                        <div key={featureName} className="border rounded p-4 mb-4 bg-gray-50">
-                            <div className="flex items-center justify-between mb-3">
-                                <h4 className="font-medium text-gray-800">{featureName}</h4>
-                                <button
-                                    onClick={() => handleRemoveFeature(featureName)}
-                                    className="text-red-500 hover:text-red-700 text-sm cursor-pointer"
-                                >
-                                    Remove
-                                </button>
-                            </div>
-                            <div className="flex flex-col gap-2">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={options.blanks}
-                                        onChange={() => handleFeatureSpecificCheckbox(featureName, "blanks")}
-                                    />
-                                    <span>Blanks ({detectedMissing?.blanks ? "(Auto-Detected)" : ""})</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={options.na}
-                                        onChange={() => handleFeatureSpecificCheckbox(featureName, "na")}
-                                    />
-                                    <span>N/A</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={options.other}
-                                        onChange={() => handleFeatureSpecificCheckbox(featureName, "other")}
-                                    />
-                                    <span>Other:</span>
-                                    <input
-                                        type="text"
-                                        className="border rounded px-2 py-1 text-sm min-w-[180px] italic"
-                                        placeholder="Please Indicate"
-                                        value={options.otherText}
-                                        onChange={(e) => handleFeatureSpecificOtherText(featureName, e.target.value)}
-                                        disabled={!options.other}
-                                    />
-                                </label>
-                            </div>
+                    <div className="text-xs text-gray-500 mb-3">
+                        (Separate by commas if more than one answer.)
+                    </div>
+
+                    {Object.entries(featureSpecificOptions).length > 0 && (
+                        <div className="mt-2 flex flex-col gap-1">
+                            {Object.entries(featureSpecificOptions).map(([featureName, options]) => (
+                                <div key={featureName} className="flex items-center gap-3 text-sm">
+                                    <span className="font-medium text-gray-700">{featureName}:</span>
+                                    <span className="text-gray-600 italic">{options.otherText}</span>
+                                    <button
+                                        onClick={() => handleRemoveFeature(featureName)}
+                                        className="text-gray-400 hover:text-red-500 text-xs cursor-pointer"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            ))}
                         </div>
-                    ))}
+                    )}
                 </div>
+
                 <div className="mb-6 mt-8">
                     <div className="text-gray-500 text-sm mb-2">
                         Dataset preview (first 10 rows)
@@ -683,7 +486,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                                 <tbody>
                                     {datasetPreview.data_rows.map((row, i) => (
                                         <tr key={i}>
-                                            {row.map((cell, j) => (
+                                            {row.map((cell: any, j: number) => (
                                                 <td
                                                     key={j}
                                                     className={`px-3 py-2 border text-xs text-gray-800 whitespace-nowrap border-b-2 border-gray-300 ${
@@ -709,10 +512,11 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                             </div>
                         )}
                     </div>
+                    <div className="text-xs text-red-500 mt-1">
+                        Missing data is shown by red boxes.
+                    </div>
                 </div>
-                <div className="text-xs text-red-500">
-                    Missing data is shown by red boxes.
-                </div>
+
                 <div className="flex justify-between mt-8">
                     <button
                         className={`${styles.button} ${styles.secondary}`}

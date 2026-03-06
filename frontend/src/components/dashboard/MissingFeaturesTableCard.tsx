@@ -722,6 +722,10 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                 Features with missing data
             </div>
 
+            <div className="mb-4 text-sm text-gray-600">
+                Data types are auto-detected. Please click to change if necessary.
+            </div>
+
             {!hasTargetFeature && (
                 <div className="mb-4 text-sm text-gray-600">
                     To gain insight into{" "}
@@ -729,7 +733,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                         onClick={() => onInfoClick(
                             "Sometimes, the fact that some cases are missing some particular features can be informative. For instance, in a hypothetical financial dataset, if people with lower credit scores are less likely to report their credit scores, then whether a person's credit score is missing is informative. Informative missingness often happens when data is Missing Not at Random (MNAR)."
                         )}
-                        className="text-blue-600 hover:text-blue-800 inline-flex items-center gap-1"
+                        className="text-blue-600 hover:text-blue-800 inline-flex items-center gap-1 cursor-pointer"
                     >
                         informative missingness
                         <InfoOutlinedIcon fontSize="small" />
@@ -737,7 +741,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                     ,{" "}
                     <button
                         onClick={handleSelectTargetFeature}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-blue-600 hover:text-blue-800 cursor-pointer"
                     >
                         select your target feature
                     </button>
@@ -761,7 +765,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                                             text={"Data Type"}
                                             onClick={() => {
                                                 onInfoClick?.(
-                                                    'Data types are auto-detected. If the auto-detection is wrong, click on the letter to change data type.\n Numerical data are numbers representing measurable quantities, such as a person\'s age and income. Categorical data are labels describing different characteristics. Categorical data has two subcategories - nominal data and ordinal data. Nominal data have no inherent order among the categories, such as a person\'s gender and hometown. Ordinal data are labels with inherent orders, such as student grades where "A" is considered better than "B."'
+                                                    'Data types are auto-detected. If the auto-detection is wrong, click to change data type.\n Numerical data are numbers representing measurable quantities, such as a person\'s age and income. Categorical data are labels describing different characteristics. Categorical data has two subcategories - nominal data and ordinal data. Nominal data have no inherent order among the categories, such as a person\'s gender and hometown. Ordinal data are labels with inherent orders, such as student grades where "A" is considered better than "B."'
                                                 );
                                             }}
                                         />
