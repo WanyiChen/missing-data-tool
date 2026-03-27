@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import styles from "../common/Button.module.css";
 
@@ -17,7 +16,6 @@ const FirstQuestion: React.FC<FirstQuestionProps> = ({
     onError,
 }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const navigate = useNavigate();
     const [datasetPreview, setDatasetPreview] = useState<{
         title_row: string[];
         data_rows: any[][];

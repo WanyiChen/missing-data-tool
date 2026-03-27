@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 
 interface RecommendationData {
     recommendation_type: string;
@@ -18,9 +18,7 @@ interface ApiErrorResponse {
     error_type?: string;
 }
 
-const RecommendationTableCard: React.FC<RecommendationTableCardProps> = ({
-    onInfoClick,
-}) => {
+const RecommendationTableCard: React.FC<RecommendationTableCardProps> = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [errorType, setErrorType] = useState<string | null>(null);

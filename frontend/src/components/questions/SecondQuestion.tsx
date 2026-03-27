@@ -58,22 +58,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
     );
     const [isLoadingPreview, setIsLoadingPreview] = useState(true);
     const [isInitialPreviewLoad, setIsInitialPreviewLoad] = useState(true);
-    const [backendAnalysis, setBackendAnalysis] = useState<{
-        missing_cells: number;
-        missing_percentage: number;
-        missing_patterns: {
-            null_values: number;
-            empty_strings: number;
-            whitespace_only: number;
-        };
-        pattern_percentages: {
-            null_percentage: number;
-            empty_string_percentage: number;
-            whitespace_percentage: number;
-        };
-        columns_with_missing: Record<string, number>;
-    } | null>(null);
-    const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+
     const [detectedMissing, setDetectedMissing] = useState<{
         blanks: boolean;
         na: boolean;
@@ -132,20 +117,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         featureSpecificOptions,
     ]);
 
-    useEffect(() => {
-        if (datasetPreview) {
-            // Fetch detailed analysis from backend
-            setLoadingAnalysis(true);
-            fetchMissingDataAnalysis()
-                .then((analysis) => {
-                    setBackendAnalysis(analysis);
-                    setLoadingAnalysis(false);
-                })
-                .catch(() => {
-                    setLoadingAnalysis(false);
-                });
-        }
-    }, [datasetPreview]);
+
 
     useEffect(() => {
         if (datasetPreview && datasetPreview.title_row) {
@@ -197,34 +169,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         }
     };
 
-    // Function to fetch detailed missing data analysis from backend
-    const fetchMissingDataAnalysis = async (): Promise<{
-        missing_cells: number;
-        missing_percentage: number;
-        missing_patterns: {
-            null_values: number;
-            empty_strings: number;
-            whitespace_only: number;
-        };
-        pattern_percentages: {
-            null_percentage: number;
-            empty_string_percentage: number;
-            whitespace_percentage: number;
-        };
-        columns_with_missing: Record<string, number>;
-    } | null> => {
-        try {
-            const res = await axios.get("/api/missing-data-analysis");
-            if (res.data.success) {
-                return res.data;
-            }
-        } catch (error) {
-            console.log(
-                "Backend analysis not available, using frontend detection only"
-            );
-        }
-        return null;
-    };
+
 
     const handleCheckbox = (key: "blanks" | "na" | "other") => {
         const newOptions = {

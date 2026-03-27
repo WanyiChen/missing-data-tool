@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://missing-data-tool-backend.onrender.com/api/$1"
+    }
+  ]
+}
