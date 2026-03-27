@@ -58,7 +58,27 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
     );
     const [isLoadingPreview, setIsLoadingPreview] = useState(true);
     const [isInitialPreviewLoad, setIsInitialPreviewLoad] = useState(true);
+    const [backendAnalysis, setBackendAnalysis] = useState<{
+        missing_cells: number;
+        missing_percentage: number;
+        missing_patterns: {
+            null_values: number;
+            empty_strings: number;
+            whitespace_only: number;
+        };
+        pattern_percentages: {
+            null_percentage: number;
+            empty_string_percentage: number;
+            whitespace_percentage: number;
+        };
+        columns_with_missing: Record<string, number>;
+    } | null>(null);
+    const [loadingAnalysis, setLoadingAnalysis] = useState(false);
 
+
+    console.log(loadingAnalysis);
+    console.log(backendAnalysis);
+    
     const [detectedMissing, setDetectedMissing] = useState<{
         blanks: boolean;
         na: boolean;
@@ -90,7 +110,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                 });
             }
         });
-        
+
         // Fetch available feature names from dataset preview
         if (datasetPreview && datasetPreview.title_row) {
             setAvailableFeatures(datasetPreview.title_row);
@@ -117,7 +137,20 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         featureSpecificOptions,
     ]);
 
-
+    useEffect(() => {
+        if (datasetPreview) {
+            // Fetch detailed analysis from backend
+            setLoadingAnalysis(true);
+            fetchMissingDataAnalysis()
+                .then((analysis) => {
+                    setBackendAnalysis(analysis);
+                    setLoadingAnalysis(false);
+                })
+                .catch(() => {
+                    setLoadingAnalysis(false);
+                });
+        }
+    }, [datasetPreview]);
 
     useEffect(() => {
         if (datasetPreview && datasetPreview.title_row) {
@@ -169,7 +202,34 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         }
     };
 
-
+    // Function to fetch detailed missing data analysis from backend
+    const fetchMissingDataAnalysis = async (): Promise<{
+        missing_cells: number;
+        missing_percentage: number;
+        missing_patterns: {
+            null_values: number;
+            empty_strings: number;
+            whitespace_only: number;
+        };
+        pattern_percentages: {
+            null_percentage: number;
+            empty_string_percentage: number;
+            whitespace_percentage: number;
+        };
+        columns_with_missing: Record<string, number>;
+    } | null> => {
+        try {
+            const res = await axios.get("/api/missing-data-analysis");
+            if (res.data.success) {
+                return res.data;
+            }
+        } catch (error) {
+            console.log(
+                "Backend analysis not available, using frontend detection only"
+            );
+        }
+        return null;
+    };
 
     const handleCheckbox = (key: "blanks" | "na" | "other") => {
         const newOptions = {
@@ -253,22 +313,22 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
 
     const isCellMissing = (cell: any, columnIndex: number) => {
         if (cell === null || cell === undefined) return true;
-        
+
         const featureName = datasetPreview?.title_row[columnIndex];
         const featureOptions = featureName ? featureSpecificOptions[featureName] : null;
-        
+
         // Check feature-specific "other" values
         if (featureOptions?.other && featureOptions.otherText) {
             const otherValues = featureOptions.otherText.split(",").map(v => v.trim().toLowerCase());
             if (otherValues.includes(String(cell).toLowerCase())) return true;
         }
-        
+
         // Check global "other" values
         if (missingDataOptions.other && missingDataOptions.otherText) {
             const otherValues = missingDataOptions.otherText.split(",").map(v => v.trim().toLowerCase());
             if (otherValues.includes(String(cell).toLowerCase())) return true;
         }
-        
+
         return false;
     };
 

@@ -21,6 +21,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+async def root():
+    return {"message": "Missing Data Tool Backend is running"}
+
 # Import routers from new modules
 from routes.validation_routes import router as validation_router
 from routes.dashboard_routes import router as dashboard_router
