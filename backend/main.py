@@ -15,6 +15,8 @@ app.add_middleware(
         "http://localhost:5173",  # Local development
         "https://*.vercel.app",   # All Vercel deployments
         "https://missing-data-tool.vercel.app",  # Your specific domain
+        "https://missing-data-tool-1.onrender.com",  # Your Render frontend
+        "https://*.onrender.com",  # All Render deployments
     ],
     allow_credentials=True,
     allow_methods=["*"],
