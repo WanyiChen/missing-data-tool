@@ -1,11 +1,29 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 import os
 import pandas as pd
 import io
 import json
 
 app = FastAPI()
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",  # Local development
+        "https://*.vercel.app",   # All Vercel deployments
+        "https://missing-data-tool.vercel.app",  # Your specific domain
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+async def root():
+    return {"message": "Missing Data Tool Backend is running"}
 
 # Import routers from new modules
 from routes.validation_routes import router as validation_router

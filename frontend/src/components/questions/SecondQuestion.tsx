@@ -74,6 +74,11 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         columns_with_missing: Record<string, number>;
     } | null>(null);
     const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+
+
+    console.log(loadingAnalysis);
+    console.log(backendAnalysis);
+    
     const [detectedMissing, setDetectedMissing] = useState<{
         blanks: boolean;
         na: boolean;
@@ -105,7 +110,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                 });
             }
         });
-        
+
         // Fetch available feature names from dataset preview
         if (datasetPreview && datasetPreview.title_row) {
             setAvailableFeatures(datasetPreview.title_row);
@@ -308,22 +313,22 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
 
     const isCellMissing = (cell: any, columnIndex: number) => {
         if (cell === null || cell === undefined) return true;
-        
+
         const featureName = datasetPreview?.title_row[columnIndex];
         const featureOptions = featureName ? featureSpecificOptions[featureName] : null;
-        
+
         // Check feature-specific "other" values
         if (featureOptions?.other && featureOptions.otherText) {
             const otherValues = featureOptions.otherText.split(",").map(v => v.trim().toLowerCase());
             if (otherValues.includes(String(cell).toLowerCase())) return true;
         }
-        
+
         // Check global "other" values
         if (missingDataOptions.other && missingDataOptions.otherText) {
             const otherValues = missingDataOptions.otherText.split(",").map(v => v.trim().toLowerCase());
             if (otherValues.includes(String(cell).toLowerCase())) return true;
         }
-        
+
         return false;
     };
 

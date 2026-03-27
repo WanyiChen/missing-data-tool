@@ -1,4 +1,3 @@
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { BaseCard } from "./base";

@@ -10,7 +10,6 @@ import FeatureCountCard from "../components/dashboard/FeatureCountCard";
 import MissingFeaturesTableCard from "../components/dashboard/MissingFeaturesTableCard";
 import CompleteFeaturesTableCard from "../components/dashboard/CompleteFeaturesTableCard";
 import RecommendationTableCard from "../components/dashboard/RecommendationTableCard";
-import NextPageCard from "../components/dashboard/NextPageCard";
 import axios from "axios";
 
 function ConfirmationModal({
@@ -108,6 +107,11 @@ const DashboardPage: React.FC = () => {
         setInfoModal({ open: false, message: "" });
     };
 
+    
+    const handleDownloadReport = () => {
+        navigate("/report");
+    };
+
     useEffect(() => {
         const checkMissingData = async () => {
             try {
@@ -147,7 +151,10 @@ const DashboardPage: React.FC = () => {
                         <UploadIcon fontSize="small" />
                         Upload new dataset
                     </button>
-                    <button className="flex items-center gap-2 text-sm text-gray-700 hover:text-black font-medium cursor-pointer">
+                    <button 
+                        className="flex items-center gap-2 text-sm text-gray-700 hover:text-black font-medium cursor-pointer" 
+                        onClick={handleDownloadReport}
+                        >
                         <DownloadIcon fontSize="small" />
                         Download report
                     </button>
@@ -178,7 +185,7 @@ const DashboardPage: React.FC = () => {
                             </div>
                             <MissingFeaturesTableCard onInfoClick={handleInfoClick} />
                             <CompleteFeaturesTableCard onInfoClick={handleInfoClick} />
-                            <RecommendationTableCard onInfoClick={handleInfoClick} />
+                            <RecommendationTableCard />
                             {/* <NextPageCard /> */}
                         </>
                     )}

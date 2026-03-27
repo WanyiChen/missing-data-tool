@@ -42,13 +42,6 @@ const MissingDataMechanismPage: React.FC = () => {
         }));
     };
 
-    const getTitle = () => {
-        if (!data) return 'Missing Data Mechanism';
-        return data.mechanism === 'MCAR' 
-            ? 'Possible missing data mechanism: MCAR'
-            : 'Possible missing data mechanisms: MAR or MNAR';
-    };
-
     if (loading) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-white">

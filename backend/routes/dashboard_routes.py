@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import io
 import math
+import numpy as np
 from pyampute.exploration.mcar_statistical_tests import MCARTest
 from models.feature import FEATURE_CACHE, calculate_all_recommendations, group_recommendations_by_type, initialize_feature_cache
 
@@ -29,6 +30,7 @@ def case_count(request: Request):
 
     return {
         "success": True,
+        "total_cases": int(total_rows),
         "total_missing_cases": int(rows_with_missing),
         "missing_percentage": round(missing_percentage, 2)
     }
@@ -47,6 +49,7 @@ def feature_count(request: Request):
     missing_feature_percentage = (features_with_missing / total_features * 100) if total_features > 0 else 0
     return {
         "success": True,
+        "total_features": total_features,
         "features_with_missing": features_with_missing,
         "missing_feature_percentage": round(missing_feature_percentage, 2)
     }
@@ -120,14 +123,63 @@ def get_cached_missing_mechanism(request: Request):
             request.app.state.missing_data_mechanism = mechanism_data
             return mechanism_data
         
-        # Attempt MCAR test with enhanced error handling
+        # Attempt MCAR test with enhanced error handling and data preprocessing
         try:
-            logger.info("Running MCAR test to determine missing data mechanism")
-            mt = MCARTest(method="little")
-            p_value = mt.little_mcar_test(df)
-            logger.debug(f"MCAR test completed with p-value: {p_value}")
+            logger.info("Preprocessing data for MCAR test")
             
+            # Create a copy for testing
+            test_df = df.copy()
+            
+            # Convert all columns to numeric where possible
+            numeric_columns = []
+            for col in test_df.columns:
+                if test_df[col].dtype in ['int64', 'float64', 'int32', 'float32']:
+                    # Already numeric
+                    numeric_columns.append(col)
+                elif test_df[col].dtype == 'object':
+                    # Try to convert object columns to numeric
+                    try:
+                        test_df[col] = pd.to_numeric(test_df[col], errors='coerce')
+                        numeric_columns.append(col)
+                    except:
+                        # If conversion fails, encode as categorical
+                        try:
+                            # Convert to categorical codes
+                            categorical_data = pd.Categorical(test_df[col])
+                            test_df[col] = categorical_data.codes.astype(float)
+                            # Replace -1 (missing category) with NaN
+                            test_df[col] = test_df[col].replace(-1, np.nan)
+                            numeric_columns.append(col)
+                        except:
+                            logger.warning(f"Could not process column {col} for MCAR test")
+                else:
+                    # Handle other dtypes (like Int64, boolean, etc.)
+                    try:
+                        test_df[col] = pd.to_numeric(test_df[col], errors='coerce')
+                        numeric_columns.append(col)
+                    except:
+                        logger.warning(f"Could not convert column {col} to numeric for MCAR test")
+            
+            # Keep only successfully converted numeric columns
+            if numeric_columns:
+                test_df = test_df[numeric_columns]
+                
+                # Ensure we have enough data for the test
+                if len(test_df.columns) < 2:
+                    raise ValueError("Need at least 2 numeric columns for MCAR testing")
+                
+                if len(test_df) < 30:
+                    raise ValueError(f"Dataset too small for reliable MCAR testing: {len(test_df)} rows")
+                
+                logger.info(f"Running MCAR test on {len(test_df.columns)} numeric columns")
+                mt = MCARTest(method="little")
+                p_value = mt.little_mcar_test(test_df)
+                logger.debug(f"MCAR test completed with p-value: {p_value}")
+            else:
+                raise ValueError("No columns could be converted to numeric format for MCAR testing")
+                
         except ImportError as e:
+
             logger.error(f"Missing required library for MCAR test: {str(e)}")
             mechanism_data = {
                 "success": False,
@@ -195,11 +247,11 @@ def get_cached_missing_mechanism(request: Request):
                 
                 if p_value_float < 0.05:
                     mechanism_acronym = "MAR or MNAR"
-                    mechanism_full = "(Missing at Random or Missing Not at Random)"
+                    mechanism_full = "Missing at Random (MAR) or Missing Not at Random (MNAR)"
                     logger.info(f"Determined mechanism: {mechanism_acronym} (p-value: {p_value_float:.6f})")
                 else:
                     mechanism_acronym = "MCAR"
-                    mechanism_full = "(Missing Completely at Random)"
+                    mechanism_full = "Missing Completely at Random (MCAR)"
                     logger.info(f"Determined mechanism: {mechanism_acronym} (p-value: {p_value_float:.6f})")
                 
                 mechanism_data = {

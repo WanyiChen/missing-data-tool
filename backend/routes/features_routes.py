@@ -250,6 +250,19 @@ def get_cache_status():
         "cache_initialized": len(FEATURE_CACHE) > 0
     }
 
+@router.get("/api/target-feature-status")
+def get_target_feature_status(request: Request):
+    """Get the status of the target feature."""
+    target_feature = getattr(request.app.state, "target_feature", None)
+    target_type = getattr(request.app.state, "target_type", None)
+    
+    return {
+        "success": True,
+        "has_target_feature": target_feature is not None,
+        "target_feature_name": target_feature,
+        "target_feature_type": target_type
+    }
+
 @router.post("/api/features-table/reset-data-type/{feature_name}")
 def reset_feature_data_type(request: Request, feature_name: str):
     """Reset a feature's data type to the auto-detected value."""

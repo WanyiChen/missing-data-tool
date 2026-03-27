@@ -6,7 +6,6 @@ import SecondQuestion from "../components/questions/SecondQuestion";
 import ThirdQuestion from "../components/questions/ThirdQuestion";
 import { Modal } from "../components/common/modal";
 import styles from "../components/common/Button.module.css";
-import * as XLSX from "xlsx";
 
 const MAX_SIZE_MB = 100;
 const ACCEPTED_FORMATS = [".csv", ".xls", ".xlsx"];
@@ -39,22 +38,12 @@ function ErrorModal({
     );
 }
 
-function truncateFileName(name: string, maxLength = 28) {
-    if (name.length <= maxLength) return name;
-    const extIndex = name.lastIndexOf(".");
-    const ext = extIndex !== -1 ? name.slice(extIndex) : "";
-    const base = name.slice(0, maxLength - ext.length - 3);
-    return `${base}...${ext}`;
-}
-
 export default function LandingPage() {
     const [uploading, setUploading] = useState(false);
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [errorModal, setErrorModal] = useState<{
         open: boolean;
         message: string;
     }>({ open: false, message: "" });
-    const [uploadSuccess, setUploadSuccess] = useState(false);
     const [step, setStep] = useState(0);
     const [featureNames, setFeatureNames] = useState<null | boolean>(null);
     const [missingDataOptions, setMissingDataOptions] = useState({
@@ -70,6 +59,7 @@ export default function LandingPage() {
 
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+
 
     // Check for step parameter in URL
     useEffect(() => {
@@ -94,6 +84,7 @@ export default function LandingPage() {
     const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
+
         const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
         if (!ACCEPTED_FORMATS.includes(ext)) {
             setErrorModal({
@@ -109,10 +100,12 @@ export default function LandingPage() {
             });
             return;
         }
-        setSelectedFile(file);
+
         setUploading(true);
+
         const formData = new FormData();
         formData.append("file", file);
+
         try {
             const response = await axios.post(
                 "/api/validate-upload",
@@ -122,11 +115,11 @@ export default function LandingPage() {
                 }
             );
             if (response.data.success) {
+                sessionStorage.setItem("uploadedFileName", file.name);
                 setFeatureNames(response.data.has_feature_names);
                 setStep(1);
             } else {
                 setErrorModal({ open: true, message: response.data.message });
-                setSelectedFile(null);
             }
         } catch (error: any) {
             let message = "An unknown error occurred.";
@@ -138,7 +131,6 @@ export default function LandingPage() {
                 message = error.response.data.message;
             }
             setErrorModal({ open: true, message });
-            setSelectedFile(null);
         } finally {
             setUploading(false);
         }

@@ -120,12 +120,28 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
         height: number;
     } | null>(null);
     const [correlationFilter, setCorrelationFilter] =
-        useState<CorrelationFilter>({
-            correlations: true,
-            noCorrelations: true,
-            pearsonThreshold: 0.7,
-            cramerVThreshold: 0.7,
-            etaThreshold: 0.7,
+        useState<CorrelationFilter>(() => {
+            const saved = localStorage.getItem('correlationThresholds');
+            const defaultThresholds = {
+                correlations: true,
+                noCorrelations: true,
+                pearsonThreshold: 0.7,
+                cramerVThreshold: 0.7,
+                etaThreshold: 0.7,
+            };
+            
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    return {
+                        ...defaultThresholds,
+                        ...parsed
+                    };
+                } catch {
+                    return defaultThresholds;
+                }
+            }
+            return defaultThresholds;
         });
 
     // Correlation details dropdown states
@@ -233,6 +249,15 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
     useEffect(() => {
         fetchFeaturesData();
     }, []);
+
+    // Save correlation filter thresholds to localStorage whenever they change
+    useEffect(() => {
+        localStorage.setItem('correlationThresholds', JSON.stringify({
+            pearsonThreshold: correlationFilter.pearsonThreshold,
+            cramerVThreshold: correlationFilter.cramerVThreshold,
+            etaThreshold: correlationFilter.etaThreshold,
+        }));
+    }, [correlationFilter.pearsonThreshold, correlationFilter.cramerVThreshold, correlationFilter.etaThreshold]);
 
     // Reload feature analysis when correlation filter thresholds change
     useEffect(() => {
