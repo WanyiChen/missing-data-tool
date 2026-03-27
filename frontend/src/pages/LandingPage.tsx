@@ -1,11 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
+import config from "../config";
 import FirstQuestion from "../components/questions/FirstQuestion";
 import SecondQuestion from "../components/questions/SecondQuestion";
 import ThirdQuestion from "../components/questions/ThirdQuestion";
 import { Modal } from "../components/common/modal";
 import styles from "../components/common/Button.module.css";
+
+// Create axios instance with base URL
+const api = axios.create({
+    baseURL: config.apiBaseUrl,
+});
 
 const MAX_SIZE_MB = 100;
 const ACCEPTED_FORMATS = [".csv", ".xls", ".xlsx"];
@@ -107,7 +113,7 @@ export default function LandingPage() {
         formData.append("file", file);
 
         try {
-            const response = await axios.post(
+            const response = await api.post(
                 "/api/validate-upload",
                 formData,
                 {

@@ -9,6 +9,15 @@ export default defineConfig({
             "/api": "http://localhost:8000",
         },
     },
+    preview: {
+        host: true,
+        port: process.env.PORT ? parseInt(process.env.PORT) : 4173,
+        allowedHosts: [
+            "missing-data-tool-1.onrender.com",
+            "localhost",
+            "127.0.0.1"
+        ]
+    },
     resolve: {
         alias: {
             stream: "stream-browserify",
