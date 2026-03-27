@@ -59,7 +59,6 @@ export default function LandingPage() {
 
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
 
     // Check for step parameter in URL
@@ -102,7 +101,6 @@ export default function LandingPage() {
             return;
         }
 
-        setSelectedFile(file);
         setUploading(true);
 
         const formData = new FormData();
@@ -122,7 +120,6 @@ export default function LandingPage() {
                 setStep(1);
             } else {
                 setErrorModal({ open: true, message: response.data.message });
-                setSelectedFile(null);
             }
         } catch (error: any) {
             let message = "An unknown error occurred.";
@@ -134,7 +131,6 @@ export default function LandingPage() {
                 message = error.response.data.message;
             }
             setErrorModal({ open: true, message });
-            setSelectedFile(null);
         } finally {
             setUploading(false);
         }
