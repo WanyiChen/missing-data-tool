@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import api from "../config";
+import api from "../../config.js";
 import styles from "../common/Button.module.css";
 
 interface SecondQuestionProps {
@@ -97,7 +97,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
     }>({});
 
     useEffect(() => {
-        api.get("/api/detect-missing-data-options").then((res) => {
+        api.get("/api/detect-missing-data-options").then((res: any) => {
             if (res.data.success && res.data.suggestions) {
                 setMissingDataOptions({
                     ...missingDataOptions,
@@ -219,7 +219,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
         columns_with_missing: Record<string, number>;
     } | null> => {
         try {
-            const res = await axios.get("/api/missing-data-analysis");
+            const res = await api.get("/api/missing-data-analysis");
             if (res.data.success) {
                 return res.data;
             }

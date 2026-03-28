@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import api from "../config";
+import api from "../../config";
 import styles from "../common/Button.module.css";
 
 type FirstQuestionProps = {
