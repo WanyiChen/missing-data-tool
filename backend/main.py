@@ -13,13 +13,13 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",  # Local development
-        "https://*.vercel.app",   # All Vercel deployments
-        "https://missing-data-tool.vercel.app",  # Your specific domain
+        "http://localhost:4173",  # Vite preview
         "https://missing-data-tool-1.onrender.com",  # Your Render frontend
-        "https://*.onrender.com",  # All Render deployments
+        "https://missing-data-tool.vercel.app",  # Your Vercel domain
+        "*",  # Allow all origins temporarily for debugging
     ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
 )
 
