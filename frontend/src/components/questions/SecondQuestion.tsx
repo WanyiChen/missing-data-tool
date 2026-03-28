@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../config";
 import styles from "../common/Button.module.css";
 
 interface SecondQuestionProps {
@@ -97,7 +97,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
     }>({});
 
     useEffect(() => {
-        axios.get("/api/detect-missing-data-options").then((res) => {
+        api.get("/api/detect-missing-data-options").then((res) => {
             if (res.data.success && res.data.suggestions) {
                 setMissingDataOptions({
                     ...missingDataOptions,
@@ -178,7 +178,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
             };
             formData.append("missingDataOptions", JSON.stringify(optionsWithFeatureSpecific));
             formData.append("featureNames", featureNames ? "true" : "false");
-            const response = await axios.post(
+            const response = await api.post(
                 "/api/dataset-preview-live",
                 formData,
                 { headers: { "Content-Type": "multipart/form-data" } }
@@ -353,7 +353,7 @@ const SecondQuestion: React.FC<SecondQuestionProps> = ({
                 JSON.stringify(optionsWithFeatureSpecific)
             );
 
-            const response = await axios.post(
+            const response = await api.post(
                 "/api/submit-missing-data-options",
                 formData,
                 {

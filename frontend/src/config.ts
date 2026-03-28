@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 // API configuration for different environments
 const config = {
   // In production on Render, use the backend service URL
@@ -7,4 +9,10 @@ const config = {
     : '',
 };
 
-export default config;
+// Create axios instance with base URL
+const api = axios.create({
+  baseURL: config.apiBaseUrl,
+});
+
+export default api;
+export { config };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../config";
 import styles from "../common/Button.module.css";
 
 type FirstQuestionProps = {
@@ -34,7 +34,7 @@ const FirstQuestion: React.FC<FirstQuestionProps> = ({
                     featureNames ? "true" : "false"
                 );
                 formData.append("missingDataOptions", JSON.stringify({}));
-                const response = await axios.post(
+                const response = await api.post(
                     "/api/dataset-preview-live",
                     formData,
                     { headers: { "Content-Type": "multipart/form-data" } }
@@ -66,7 +66,7 @@ const FirstQuestion: React.FC<FirstQuestionProps> = ({
         try {
             const formData = new FormData();
             formData.append("featureNames", featureNames ? "true" : "false");
-            const response = await axios.post(
+            const response = await api.post(
                 "/api/submit-feature-names",
                 formData,
                 { headers: { "Content-Type": "multipart/form-data" } }
