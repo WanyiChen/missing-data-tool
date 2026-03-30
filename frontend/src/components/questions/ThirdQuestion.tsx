@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import axios from "axios";
+import api from "../../config";
 import styles from "../common/Button.module.css";
 
 interface ThirdQuestionProps {
@@ -60,7 +60,7 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                     "featureNames",
                     featureNames ? "true" : "false"
                 );
-                const response = await axios.post(
+                const response = await api.post(
                     "/api/dataset-preview-live",
                     formData,
                     { headers: { "Content-Type": "multipart/form-data" } }
@@ -156,7 +156,7 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
             formData.append("targetFeature", targetFeature);
             formData.append("targetType", targetType);
 
-            const response = await axios.post(
+            const response = await api.post(
                 "/api/submit-target-feature",
                 formData,
                 {
@@ -190,7 +190,7 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
             formData.append("targetFeature", "");
             formData.append("targetType", "");
 
-            const response = await axios.post(
+            const response = await api.post(
                 "/api/submit-target-feature",
                 formData,
                 {
