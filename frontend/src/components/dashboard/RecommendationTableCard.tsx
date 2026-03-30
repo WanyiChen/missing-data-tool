@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../config";
 
 interface RecommendationData {
     recommendation_type: string;
@@ -100,7 +100,7 @@ const RecommendationTableCard: React.FC<RecommendationTableCardProps> = () => {
         }
 
         try {
-            const res = await axios.get("/api/missing-data-recommendations", {
+            const res = await api.get("/api/missing-data-recommendations", {
                 timeout: 30000, // 30 second timeout
                 headers: {
                     "Cache-Control": "no-cache",

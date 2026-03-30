@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../../config";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import FilterListIcon from "@mui/icons-material/FilterList";
@@ -314,7 +314,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
         newType: "N" | "C"
     ) => {
         try {
-            const res = await axios.patch(
+            const res = await api.patch(
                 "/api/features-table",
                 {
                     feature_name: featureName,
@@ -501,7 +501,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
         }
 
         try {
-            const res = await axios.get(`/api/complete-features-table?page=${page}&limit=${limit}`, {
+            const res = await api.get(`/api/complete-features-table?page=${page}&limit=${limit}`, {
                 timeout: 30000, // 30 second timeout
                 headers: {
                     "Cache-Control": "no-cache",
@@ -616,7 +616,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                     correlationFilter.etaThreshold.toString(),
             });
 
-            const res = await axios.get(
+            const res = await api.get(
                 `/api/feature-details/${encodeURIComponent(
                     featureName
                 )}?${params}`,

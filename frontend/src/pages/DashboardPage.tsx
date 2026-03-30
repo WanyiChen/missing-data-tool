@@ -10,7 +10,7 @@ import FeatureCountCard from "../components/dashboard/FeatureCountCard";
 import MissingFeaturesTableCard from "../components/dashboard/MissingFeaturesTableCard";
 import CompleteFeaturesTableCard from "../components/dashboard/CompleteFeaturesTableCard";
 import RecommendationTableCard from "../components/dashboard/RecommendationTableCard";
-import axios from "axios";
+import api from "../config";
 
 function ConfirmationModal({
     onClose,
@@ -115,7 +115,7 @@ const DashboardPage: React.FC = () => {
     useEffect(() => {
         const checkMissingData = async () => {
             try {
-                const response = await axios.get("/api/missing-mechanism");
+                const response = await api.get("/api/missing-mechanism");
                 if (response.data.error_type === "no_missing_data") {
                     setHasNoMissingData(true);
                 }

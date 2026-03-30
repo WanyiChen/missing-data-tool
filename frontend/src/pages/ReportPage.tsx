@@ -1,7 +1,7 @@
 import html2pdf from 'html2pdf.js';
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../config";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 // import DownloadIcon from "@mui/icons-material/Download";
 import styles from "../components/common/Button.module.css";
@@ -97,13 +97,13 @@ const ReportPage: React.FC = () => {
         recommendationsRes,
         targetFeatureRes,
       ] = await Promise.allSettled([
-        axios.get("/api/missing-mechanism"),
-        axios.get("/api/case-count"),
-        axios.get("/api/feature-count"),
-        axios.get("/api/missing-features-table?page=0&limit=1000"),
-        axios.get("/api/complete-features-table?page=0&limit=1000"),
-        axios.get("/api/missing-data-recommendations"),
-        axios.get("/api/target-feature-status"),
+        api.get("/api/missing-mechanism"),
+        api.get("/api/case-count"),
+        api.get("/api/feature-count"),
+        api.get("/api/missing-features-table?page=0&limit=1000"),
+        api.get("/api/complete-features-table?page=0&limit=1000"),
+        api.get("/api/missing-data-recommendations"),
+        api.get("/api/target-feature-status"),
       ]);
       
 
@@ -121,7 +121,7 @@ const ReportPage: React.FC = () => {
           try {
             const thresholds = getStoredThresholds();
             const params = new URLSearchParams(thresholds);
-            const res = await axios.get(`/api/feature-details/${encodeURIComponent(feature.feature_name)}?${params}`);
+            const res = await api.get(`/api/feature-details/${encodeURIComponent(feature.feature_name)}?${params}`);
             if (res.data.success) {
               return {
                 ...feature,

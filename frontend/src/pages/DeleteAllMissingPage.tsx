@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import styles from "../components/common/Button.module.css";
 import ChartDisplay from "../components/common/ChartDisplay";
-import axios from "axios";
+import api from "../config";
 
 // Interfaces for analysis data
 interface DistributionData {
@@ -47,7 +47,7 @@ const DeleteAllMissingPage: React.FC = () => {
         setError(null);
 
         try {
-            const response = await axios.get("/api/delete-missing-data-analysis", {
+            const response = await api.get("/api/delete-missing-data-analysis", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

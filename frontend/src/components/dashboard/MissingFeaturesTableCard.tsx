@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../config";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
@@ -176,7 +176,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
     useEffect(() => {
         const checkTargetFeature = async () => {
             try {
-                const res = await axios.get('/api/target-feature-status');
+                const res = await api.get('/api/target-feature-status');
                 setHasTargetFeature(res.data.success && res.data.has_target_feature);
             } catch {
                 setHasTargetFeature(false);
@@ -194,7 +194,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
         setLoading(true);
         setError(null);
         try {
-            const res = await axios.get(`/api/missing-features-table?page=${page}&limit=${limit}`);
+            const res = await api.get(`/api/missing-features-table?page=${page}&limit=${limit}`);
             if (res.data.success) {
                 // Initialize features with loading states
                 const featuresWithLoading = res.data.features.map(
@@ -240,7 +240,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                 setError(res.data.message || "Failed to fetch data");
             }
         } catch (err: any) {
-            setError(err);
+            setError(err?.response?.data?.message || err?.message || "Failed to fetch data");
         } finally {
             setLoading(false);
         }
@@ -286,7 +286,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                     correlationFilter.etaThreshold.toString(),
             });
 
-            const res = await axios.get(
+            const res = await api.get(
                 `/api/feature-details/${encodeURIComponent(
                     featureName
                 )}?${params}`
@@ -313,7 +313,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                     correlationFilter.etaThreshold.toString(),
             });
 
-            const res = await axios.get(
+            const res = await api.get(
                 `/api/feature-details/${encodeURIComponent(
                     featureName
                 )}?${params}`
@@ -374,7 +374,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
         newType: "N" | "C"
     ) => {
         try {
-            const res = await axios.patch("/api/features-table", {
+            const res = await api.patch("/api/features-table", {
                 feature_name: featureName,
                 data_type: newType,
             });

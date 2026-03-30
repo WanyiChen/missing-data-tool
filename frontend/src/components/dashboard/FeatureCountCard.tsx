@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../config";
 import { BaseCard } from "./base";
 
 const FeatureCountCard: React.FC = () => {
@@ -13,7 +13,7 @@ const FeatureCountCard: React.FC = () => {
             setLoading(true);
             setError(null);
             try {
-                const res = await axios.get("/api/feature-count");
+                const res = await api.get("/api/feature-count");
                 if (res.data.success) {
                     setFeatureCount(res.data.features_with_missing);
                     setMissingPercent(res.data.missing_feature_percentage);

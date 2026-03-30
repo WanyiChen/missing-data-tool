@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../config";
 import { BaseCard } from "./base";
 
 const CaseCountCard: React.FC = () => {
@@ -13,7 +13,7 @@ const CaseCountCard: React.FC = () => {
             setLoading(true);
             setError(null);
             try {
-                const res = await axios.get("/api/case-count");
+                const res = await api.get("/api/case-count");
                 if (res.data.success) {
                     setMissingCaseCount(res.data.total_missing_cases);
                     setMissingPercent(res.data.missing_percentage);

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../config";
 import { useNavigate } from "react-router-dom";
 // import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { BaseCard } from "./base";
@@ -22,7 +22,7 @@ const MechanismCard: React.FC = () => {
             setLoading(true);
             setError(null);
             try {
-                const res = await axios.get("/api/missing-mechanism");
+                const res = await api.get("/api/missing-mechanism");
                 if (res.data.success) {
                     if (Number.isNaN(res.data.p_value)) {
                         setError(

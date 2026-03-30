@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../config';
 import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import styles from '../components/common/Button.module.css';
 
 interface MissingDataMechanismData {
-    mechanism: 'MCAR' | 'MAR_MNAR';
+    mechanism_acronym: string;
+    mechanism_full?: string;
     p_value?: number;
 }
 
@@ -22,7 +23,7 @@ const MissingDataMechanismPage: React.FC = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const res = await axios.get('/api/missing-data-mechanism');
+                const res = await api.get('/api/missing-mechanism');
                 if (res.data.success) {
                     setData(res.data);
                 }
@@ -145,7 +146,7 @@ const MissingDataMechanismPage: React.FC = () => {
                                     <p className="font-semibold">Test Result:</p>
                                     <p>P-value: {data.p_value.toFixed(4)}</p>
                                     <p>
-                                        {data.mechanism === 'MCAR' 
+                                        {data.mechanism_acronym === 'MCAR' 
                                             ? 'Data appears to be Missing Completely at Random (MCAR)'
                                             : 'Data appears to be Missing at Random (MAR) or Missing Not at Random (MNAR)'
                                         }
