@@ -1,5 +1,5 @@
 import html2pdf from 'html2pdf.js';
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../config";
 import styles from "../components/common/Button.module.css";
@@ -8,6 +8,40 @@ interface ReportSection {
   id: string;
   title: string;
   checked: boolean;
+}
+
+interface CorrelatedFeature {
+  feature_name: string;
+  correlation_value: number;
+  correlation_type: "r" | "V" | "η";
+}
+
+interface InformativeMissingness {
+  is_informative: boolean;
+  p_value: number;
+}
+
+interface MissingFeatureReportRow {
+  feature_name: string;
+  data_type: "N" | "C";
+  number_missing: number;
+  percentage_missing: number;
+  most_correlated_with: CorrelatedFeature | null;
+  correlated_features?: CorrelatedFeature[];
+  informative_missingness?: InformativeMissingness;
+}
+
+interface CompleteFeatureReportRow {
+  feature_name: string;
+  data_type: "N" | "C";
+  most_correlated_with: CorrelatedFeature | null;
+  correlated_features?: CorrelatedFeature[];
+}
+
+interface RecommendationReportRow {
+  features: string[] | string;
+  recommendation_type: string;
+  reason: string;
 }
 
 interface ReportData {
@@ -27,12 +61,22 @@ interface ReportData {
     features_with_missing: number;
     missing_feature_percentage: number;
   } | null;
-  missingFeatures: any[];
-  completeFeatures: any[];
-  recommendations: any[];
+  missingFeatures: MissingFeatureReportRow[];
+  completeFeatures: CompleteFeatureReportRow[];
+  recommendations: RecommendationReportRow[];
   hasTargetFeature: boolean;
   targetFeatureName?: string;
 }
+
+
+
+const formatCorrelation = (correlation: CorrelatedFeature | null | undefined): string => {
+  if (!correlation) {
+    return "—";
+  }
+
+  return `${correlation.feature_name} (${correlation.correlation_type} = ${correlation.correlation_value?.toFixed(3)})`;
+};
 
 const ReportPage: React.FC = () => {
   const navigate = useNavigate();
@@ -46,21 +90,21 @@ const ReportPage: React.FC = () => {
     { id: "recommendations", title: "Recommendations on missing data treatment", checked: true },
   ]);
 
-  const getStoredThresholds = () => {
+  const getStoredThresholds = useCallback(() => {
     const saved = localStorage.getItem('correlationThresholds');
     const defaults = {
       pearsonThreshold: 0.7,
       cramerVThreshold: 0.7,
       etaThreshold: 0.7,
     };
-    
+
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         return {
-          pearson_threshold: (parsed.pearsonThreshold || defaults.pearsonThreshold).toString(),
-          cramer_v_threshold: (parsed.cramerVThreshold || defaults.cramerVThreshold).toString(),
-          eta_threshold: (parsed.etaThreshold || defaults.etaThreshold).toString(),
+          pearson_threshold: (parsed.pearsonThreshold ?? defaults.pearsonThreshold).toString(),
+          cramer_v_threshold: (parsed.cramerVThreshold ?? defaults.cramerVThreshold).toString(),
+          eta_threshold: (parsed.etaThreshold ?? defaults.etaThreshold).toString(),
         };
       } catch {
         return {
@@ -70,20 +114,15 @@ const ReportPage: React.FC = () => {
         };
       }
     }
-    
+
     return {
       pearson_threshold: defaults.pearsonThreshold.toString(),
       cramer_v_threshold: defaults.cramerVThreshold.toString(),
       eta_threshold: defaults.etaThreshold.toString(),
     };
-  };
-
-  useEffect(() => {
-    fetchReportData();
-
   }, []);
 
-  const fetchReportData = async () => {
+  const fetchReportData = useCallback(async () => {
     setLoading(true);
     try {
       const [
@@ -106,26 +145,23 @@ const ReportPage: React.FC = () => {
       
 
       const fileName = sessionStorage.getItem("uploadedFileName") || "dataset";
+      const thresholds = getStoredThresholds();
+      const params = new URLSearchParams(thresholds);
 
-      console.log("target feature: ", targetFeatureRes);
-      
       // Get basic missing features data
-      let missingFeatures = [];
+      let missingFeatures: MissingFeatureReportRow[] = [];
       if (missingFeaturesRes.status === "fulfilled" && missingFeaturesRes.value.data.success) {
-        const basicFeatures = missingFeaturesRes.value.data.features;
-        
-        // Fetch detailed analysis for each missing feature
-        const detailedAnalysisPromises = basicFeatures.map(async (feature: any) => {
+        const basicFeatures: MissingFeatureReportRow[] = missingFeaturesRes.value.data.features;
+
+        const detailedAnalysisPromises = basicFeatures.map(async (feature: MissingFeatureReportRow) => {
           try {
-            const thresholds = getStoredThresholds();
-            const params = new URLSearchParams(thresholds);
             const res = await api.get(`/api/feature-details/${encodeURIComponent(feature.feature_name)}?${params}`);
             if (res.data.success) {
               return {
                 ...feature,
                 most_correlated_with: res.data.correlated_features.length > 0 ? res.data.correlated_features[0] : null,
                 correlated_features: res.data.correlated_features,
-                informative_missingness: res.data.informative_missingness
+                informative_missingness: res.data.informative_missingness,
               };
             }
             return feature;
@@ -134,14 +170,40 @@ const ReportPage: React.FC = () => {
             return feature;
           }
         });
-        
+
         const detailedResults = await Promise.allSettled(detailedAnalysisPromises);
-        missingFeatures = detailedResults.map((result, index) => 
-          result.status === 'fulfilled' ? result.value : basicFeatures[index]
+        missingFeatures = detailedResults.map((result, index) =>
+          result.status === "fulfilled" ? result.value : basicFeatures[index]
         );
       }
 
+      // Get complete features with correlation details filtered by the same thresholds as dashboard controls
+      let completeFeatures: CompleteFeatureReportRow[] = [];
+      if (completeFeaturesRes.status === "fulfilled" && completeFeaturesRes.value.data.success) {
+        const basicCompleteFeatures: CompleteFeatureReportRow[] = completeFeaturesRes.value.data.features;
 
+        const completeAnalysisPromises = basicCompleteFeatures.map(async (feature: CompleteFeatureReportRow) => {
+          try {
+            const res = await api.get(`/api/feature-details/${encodeURIComponent(feature.feature_name)}?${params}`);
+            if (res.data.success) {
+              return {
+                ...feature,
+                most_correlated_with: res.data.correlated_features.length > 0 ? res.data.correlated_features[0] : null,
+                correlated_features: res.data.correlated_features,
+              };
+            }
+            return feature;
+          } catch (error) {
+            console.error(`Error fetching complete feature details for ${feature.feature_name}:`, error);
+            return feature;
+          }
+        });
+
+        const completeResults = await Promise.allSettled(completeAnalysisPromises);
+        completeFeatures = completeResults.map((result, index) =>
+          result.status === "fulfilled" ? result.value : basicCompleteFeatures[index]
+        );
+      }
 
       setReportData({
         fileName,
@@ -158,10 +220,7 @@ const ReportPage: React.FC = () => {
             ? featureCountRes.value.data
             : null,
         missingFeatures,
-        completeFeatures:
-          completeFeaturesRes.status === "fulfilled" && completeFeaturesRes.value.data.success
-            ? completeFeaturesRes.value.data.features
-            : [],
+        completeFeatures,
         recommendations:
           recommendationsRes.status === "fulfilled" && recommendationsRes.value.data.success
             ? recommendationsRes.value.data.recommendations
@@ -180,7 +239,11 @@ const ReportPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getStoredThresholds]);
+
+  useEffect(() => {
+    void fetchReportData();
+  }, [fetchReportData]);
 
   const handleSectionToggle = (sectionId: string) => {
     setSections((prev) =>
@@ -235,12 +298,13 @@ const handleDownloadPDF = async () => {
     tempDiv.innerHTML = reportHTML;
     
     // Configure PDF options
-    const options: any = {
+    const options = {
       margin: 0.75,
       filename: `missing-data-report-${reportData.fileName.replace(/\.[^/.]+$/, "")}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
+      image: { type: "jpeg" as const, quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+      pagebreak: { mode: ["avoid-all", "css", "legacy"] as const },
+      jsPDF: { unit: "in" as const, format: "a4" as const, orientation: "portrait" as const }
     };
     
     // Generate and download PDF
@@ -312,6 +376,8 @@ const handleDownloadPDF = async () => {
           }
           .section {
             margin-bottom: 28px;
+            page-break-inside: avoid;
+            break-inside: avoid-page;
           }
           .section-heading {
             font-size: 13.5px;
@@ -330,11 +396,26 @@ const handleDownloadPDF = async () => {
             padding-left: 16px;
             margin: 0;
           }
+          .pdf-page-break {
+            height: 0;
+            margin: 0;
+            page-break-before: always;
+            break-before: page;
+          }
           table {
             width: 100%;
             border-collapse: collapse;
             font-size: 12px;
             margin-bottom: 6px;
+            page-break-inside: auto;
+            break-inside: auto;
+          }
+          thead {
+            display: table-header-group;
+          }
+          tr {
+            page-break-inside: avoid;
+            break-inside: avoid;
           }
           th {
             border: 1px solid #999;
@@ -349,6 +430,8 @@ const handleDownloadPDF = async () => {
             border: 1px solid #bbb;
             padding: 8px 12px;
             vertical-align: top;
+            page-break-inside: avoid;
+            break-inside: avoid;
           }
           .highlight {
             background-color: #FFFFC5 !important;
@@ -434,9 +517,9 @@ const handleDownloadPDF = async () => {
   const generateMissingFeaturesHTML = (): string => {
     if (!reportData) return "";
     const { missingFeatures, hasTargetFeature, targetFeatureName } = reportData;
-    
+
     let html = `<div class="section"><h2 class="section-heading">Features with missing data</h2>`;
-    
+
     if (missingFeatures.length > 0) {
       html += `<table><thead><tr>`;
       html += `<th>Data type</th><th>Feature name</th><th>Number missing</th><th>Percentage missing</th><th>Most correlated with</th>`;
@@ -444,35 +527,35 @@ const handleDownloadPDF = async () => {
         html += `<th>Informative missingness*</th>`;
       }
       html += `</tr></thead><tbody>`;
-      
-      missingFeatures.forEach(feature => {
+
+      missingFeatures.forEach((feature) => {
         const isInformative = feature.informative_missingness?.is_informative;
         html += `<tr>`;
         html += `<td>${feature.data_type === "N" ? "Numerical" : "Categorical"}</td>`;
         html += `<td>${feature.feature_name}</td>`;
         html += `<td>${feature.number_missing?.toLocaleString()}</td>`;
         html += `<td>${feature.percentage_missing?.toFixed(0)}%</td>`;
-        html += `<td>${feature.most_correlated_with ? `${feature.most_correlated_with.feature_name} (${feature.most_correlated_with.correlation_type} = ${feature.most_correlated_with.correlation_value?.toFixed(3)})` : "—"}</td>`;
-        
+        html += `<td>${formatCorrelation(feature.most_correlated_with)}</td>`;
+
         if (hasTargetFeature) {
-            if (isInformative) {
-                html += `<td class="highlight">Yes (p = ${feature.informative_missingness?.p_value?.toFixed(2) ?? "—"})</td>`;
-            } else {
-                html += `<td>No${feature.informative_missingness?.p_value !== undefined ? ` (p = ${feature.informative_missingness.p_value.toFixed(2)})` : ""}</td>`;
-            }
+          if (isInformative) {
+            html += `<td class="highlight">Yes (p = ${feature.informative_missingness?.p_value?.toFixed(2) ?? "—"})</td>`;
+          } else {
+            html += `<td>No${feature.informative_missingness?.p_value !== undefined ? ` (p = ${feature.informative_missingness.p_value.toFixed(2)})` : ""}</td>`;
+          }
         }
         html += `</tr>`;
       });
-      
+
       html += `</tbody></table>`;
-      
+
       if (hasTargetFeature && targetFeatureName) {
         html += `<p class="footnote">*Target feature: ${targetFeatureName}</p>`;
       }
     } else {
       html += `<p class="empty-note">No features with missing data found.</p>`;
     }
-    
+
     html += `</div>`;
     return html;
   };
@@ -480,24 +563,25 @@ const handleDownloadPDF = async () => {
   const generateCompleteFeaturesHTML = (): string => {
     if (!reportData) return "";
     const { completeFeatures } = reportData;
-    
+
     let html = `<div class="section"><h2 class="section-heading">Features with complete data</h2>`;
-    
+
     if (completeFeatures.length > 0) {
-      html += `<table><thead><tr><th>Data type</th><th>Feature name</th></tr></thead><tbody>`;
-      
-      completeFeatures.forEach(feature => {
+      html += `<table><thead><tr><th>Data type</th><th>Feature name</th><th>Most correlated with</th></tr></thead><tbody>`;
+
+      completeFeatures.forEach((feature) => {
         html += `<tr>`;
         html += `<td>${feature.data_type === "N" ? "Numerical" : "Categorical"}</td>`;
         html += `<td>${feature.feature_name}</td>`;
+        html += `<td>${formatCorrelation(feature.most_correlated_with)}</td>`;
         html += `</tr>`;
       });
-      
+
       html += `</tbody></table>`;
     } else {
       html += `<p class="empty-note">No features with complete data found.</p>`;
     }
-    
+
     html += `</div>`;
     return html;
   };
@@ -505,25 +589,25 @@ const handleDownloadPDF = async () => {
   const generateRecommendationsHTML = (): string => {
     if (!reportData) return "";
     const { recommendations } = reportData;
-    
+
     let html = `<div class="section"><h2 class="section-heading">Missing data treatment recommendations</h2>`;
-    
+
     if (recommendations.length > 0) {
       html += `<table><thead><tr><th>Features with missing data</th><th>Recommended missing data treatment</th><th>Reasons</th></tr></thead><tbody>`;
-      
-      recommendations.forEach(rec => {
+
+      recommendations.forEach((rec) => {
         html += `<tr>`;
         html += `<td>${Array.isArray(rec.features) ? rec.features.join(", ") : rec.features}</td>`;
         html += `<td>${rec.recommendation_type}</td>`;
         html += `<td>${rec.reason}</td>`;
         html += `</tr>`;
       });
-      
+
       html += `</tbody></table>`;
     } else {
       html += `<p class="empty-note">No recommendations available.</p>`;
     }
-    
+
     html += `</div>`;
     return html;
   };
@@ -649,18 +733,14 @@ const handleDownloadPDF = async () => {
                 {missingFeatures.map((feature, index) => {
                   const isInformative = feature.informative_missingness?.is_informative;
                   return (
-                    <tr key={index}>
+                    <tr key={`${feature.feature_name}-${index}`} style={docStyles.tableRowNoBreak}>
                       <td style={docStyles.td}>
                         {feature.data_type === "N" ? "Numerical" : "Categorical"}
                       </td>
                       <td style={docStyles.td}>{feature.feature_name}</td>
                       <td style={docStyles.td}>{feature.number_missing?.toLocaleString()}</td>
                       <td style={docStyles.td}>{feature.percentage_missing?.toFixed(0)}%</td>
-                      <td style={docStyles.td}>
-                        {feature.most_correlated_with
-                          ? `${feature.most_correlated_with.feature_name} (${feature.most_correlated_with.correlation_type} = ${feature.most_correlated_with.correlation_value?.toFixed(3)})`
-                          : "—"}
-                      </td>
+                      <td style={docStyles.td}>{formatCorrelation(feature.most_correlated_with)}</td>
                       {hasTargetFeature && (
                         <td style={isInformative ? docStyles.tdHighlight : docStyles.td}>
                           {isInformative ? (
@@ -707,15 +787,17 @@ const handleDownloadPDF = async () => {
               <tr>
                 <th style={docStyles.th}>Data type</th>
                 <th style={docStyles.th}>Feature name</th>
+                <th style={docStyles.th}>Most correlated with</th>
               </tr>
             </thead>
             <tbody>
               {completeFeatures.map((feature, index) => (
-                <tr key={index}>
+                <tr key={`${feature.feature_name}-${index}`} style={docStyles.tableRowNoBreak}>
                   <td style={docStyles.td}>
                     {feature.data_type === "N" ? "Numerical" : "Categorical"}
                   </td>
                   <td style={docStyles.td}>{feature.feature_name}</td>
+                  <td style={docStyles.td}>{formatCorrelation(feature.most_correlated_with)}</td>
                 </tr>
               ))}
             </tbody>
@@ -745,7 +827,7 @@ const handleDownloadPDF = async () => {
             </thead>
             <tbody>
               {recommendations.map((rec, index) => (
-                <tr key={index}>
+                <tr key={index} style={docStyles.tableRowNoBreak}>
                   <td style={docStyles.td}>
                     {Array.isArray(rec.features)
                       ? rec.features.join(", ")
@@ -1122,6 +1204,11 @@ const docStyles: Record<string, React.CSSProperties> = {
     width: "100%",
     borderCollapse: "collapse",
     fontSize: "12px",
+    marginBottom: "6px",
+  },
+  tableRowNoBreak: {
+    breakInside: "avoid",
+    pageBreakInside: "avoid",
   },
   th: {
     border: "1px solid #999",
@@ -1140,6 +1227,12 @@ const docStyles: Record<string, React.CSSProperties> = {
     padding: "8px 12px",
     verticalAlign: "top" as const,
     backgroundColor: "#FFFFC5",
+  },
+  previewPageBreak: {
+    borderTop: "2px dashed #cbd5e1",
+    margin: "20px 0",
+    pageBreakBefore: "always",
+    breakBefore: "page",
   },
   emptyNote: {
     fontSize: "12px",

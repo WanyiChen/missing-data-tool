@@ -228,6 +228,15 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
         }
     };
 
+    const handleContinue = () => {
+        if (canProceed) {
+            void handleNext();
+            return;
+        }
+
+        void handleSkip();
+    };
+
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-white">
             <div className="w-full max-w-4xl px-4 py-8">
@@ -393,24 +402,14 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                     >
                         Back
                     </button>
-                    <div className="flex gap-4">
-                        {/* <button
-                            className={`${styles.button} ${styles.secondary} ml-2`}
-                            onClick={handleSkip}
-                            disabled={isSubmitting}
-                            style={{ minWidth: 80 }}
-                        >
-                            {isSubmitting ? "Saving..." : "Skip"}
-                        </button> */}
-                        <button
-                            className={`${styles.button} ${styles.primary} ml-2`}
-                            disabled={!canProceed || isSubmitting}
-                            onClick={handleNext}
-                            style={{ minWidth: 80 }}
-                        >
-                            {isSubmitting ? "Saving..." : "Next"}
-                        </button>
-                    </div>
+                    <button
+                        className={`${styles.button} ${styles.primary} ml-2`}
+                        disabled={isSubmitting}
+                        onClick={handleContinue}
+                        style={{ minWidth: 80 }}
+                    >
+                        {isSubmitting ? "Saving..." : "Next"}
+                    </button>
                 </div>
             </div>
         </div>
