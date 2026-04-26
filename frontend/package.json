@@ -59,10 +59,5 @@
     "@tailwindcss/vite": {
       "vite": "^7.0.0"
     }
-  },
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "vercel-build": "vite build"
   }
 }
