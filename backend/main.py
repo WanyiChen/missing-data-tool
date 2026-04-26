@@ -1,10 +1,6 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-import os
-import pandas as pd
-import io
-import json
 
 app = FastAPI()
 
