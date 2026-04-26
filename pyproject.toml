@@ -1,2 +1,5 @@
+[project]
+name = "vercel-fastapi-starter"
+
 [project.scripts]
 app = "backend.main:app"
