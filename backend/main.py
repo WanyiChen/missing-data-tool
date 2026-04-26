@@ -25,7 +25,7 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"message": "Missing Data Tool Backend is running"}
+    return {"message": "Missing Data Tool Backend is running", "Python": "on Vercel"}
 
 # Import routers from new modules
 from routes.validation_routes import router as validation_router
