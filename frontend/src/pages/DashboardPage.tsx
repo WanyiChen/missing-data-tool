@@ -56,11 +56,17 @@ function ConfirmationModal({
 
 function InfoModal({
     message,
+    recommendationType,
     onClose,
 }: {
     message: string;
+    recommendationType?: string;
     onClose: () => void;
 }) {
+    const shouldShowImage =
+        recommendationType === "Create an 'unknown' category or consider adjusting the categories" ||
+        recommendationType === "Missing-indicator method";
+
     return (
         <Modal
             isOpen={true}
@@ -69,7 +75,18 @@ function InfoModal({
             contentClassName="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-8 flex flex-col items-center justify-center min-h-[200px]"
             showCloseButton={true}
         >
-            <div className="text-gray-800 text-left">{message}</div>
+            <div className="text-gray-800 text-left w-full">
+                {message}
+                {shouldShowImage && (
+                    <div className="mt-6 flex justify-center">
+                        <img
+                            src="/unknown.png"
+                            alt="Unknown category illustration"
+                            className="max-w-full h-auto rounded-lg"
+                        />
+                    </div>
+                )}
+            </div>
         </Modal>
     );
 }
@@ -80,6 +97,7 @@ const DashboardPage: React.FC = () => {
     const [infoModal, setInfoModal] = useState<{
         open: boolean;
         message: string;
+        recommendationType?: string;
     }>({
         open: false,
         message: "",
@@ -99,12 +117,12 @@ const DashboardPage: React.FC = () => {
         setShowConfirmModal(false);
     };
 
-    const handleInfoClick = (message: string) => {
-        setInfoModal({ open: true, message });
+    const handleInfoClick = (message: string, recommendationType?: string) => {
+        setInfoModal({ open: true, message, recommendationType });
     };
 
     const handleCloseInfoModal = () => {
-        setInfoModal({ open: false, message: "" });
+        setInfoModal({ open: false, message: "", recommendationType: undefined });
     };
 
     
@@ -121,6 +139,7 @@ const DashboardPage: React.FC = () => {
                 }
             } catch (error) {
                 // Handle error silently
+                console.error("Error checking missing data:", error);
             }
         };
         checkMissingData();
@@ -137,6 +156,7 @@ const DashboardPage: React.FC = () => {
             {infoModal.open && (
                 <InfoModal
                     message={infoModal.message}
+                    recommendationType={infoModal.recommendationType}
                     onClose={handleCloseInfoModal}
                 />
             )}
@@ -185,7 +205,7 @@ const DashboardPage: React.FC = () => {
                             </div>
                             <MissingFeaturesTableCard onInfoClick={handleInfoClick} />
                             <CompleteFeaturesTableCard onInfoClick={handleInfoClick} />
-                            <RecommendationTableCard />
+                            <RecommendationTableCard onInfoClick={handleInfoClick} />
                             {/* <NextPageCard /> */}
                         </>
                     )}

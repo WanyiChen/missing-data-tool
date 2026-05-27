@@ -122,11 +122,17 @@ async def update_feature_names(request: Request, featureNames: str = Form(...)):
     ext = os.path.splitext(filename or "")[1].lower()
     try:
         if ext == ".csv":
+            # Detect separator for CSV files
+            sample = file[:1024].decode('utf-8', errors='ignore')
+            if ';' in sample and sample.count(';') > sample.count(','):
+                sep = ';'
+            else:
+                sep = ','
             if featureNames == "false":
-                df = pd.read_csv(io.BytesIO(file))
+                df = pd.read_csv(io.BytesIO(file), header=None, sep=sep, low_memory=False)
                 df.columns = [f"Feature {i+1}" for i in range(len(df.columns))]
             else:
-                df = pd.read_csv(io.BytesIO(file))
+                df = pd.read_csv(io.BytesIO(file), sep=sep, low_memory=False)
         else:
             if featureNames == "false":
                 df = pd.read_excel(io.BytesIO(file), header=None)
@@ -196,11 +202,17 @@ async def submit_feature_names(request: Request, featureNames: str = Form(...)):
     ext = os.path.splitext(filename or "")[1].lower()
     try:
         if ext == ".csv":
+            # Detect separator for CSV files
+            sample = file[:1024].decode('utf-8', errors='ignore')
+            if ';' in sample and sample.count(';') > sample.count(','):
+                sep = ';'
+            else:
+                sep = ','
             if not request.app.state.feature_names:
-                df = pd.read_csv(io.BytesIO(file), header=None)
+                df = pd.read_csv(io.BytesIO(file), header=None, sep=sep, low_memory=False)
                 df.columns = [f"Feature {i+1}" for i in range(len(df.columns))]
             else:
-                df = pd.read_csv(io.BytesIO(file))
+                df = pd.read_csv(io.BytesIO(file), sep=sep, low_memory=False)
         else:
             if not request.app.state.feature_names:
                 df = pd.read_excel(io.BytesIO(file), header=None)
@@ -305,7 +317,7 @@ async def submit_missing_data_options(request: Request, missingDataOptions: str 
     return {"success": True, "message": "Missing data options saved successfully."}
 
 @router.post("/api/submit-target-feature")
-async def submit_target_feature(request: Request, targetFeature: str = Form(...), targetType: str = Form(...)):
+async def submit_target_feature(request: Request, targetFeature: str = Form(default=""), targetType: str = Form(default="")):
     """
     Handle submission of question 3: target feature configuration
     """
