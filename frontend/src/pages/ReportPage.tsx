@@ -313,6 +313,18 @@ const ReportPage: React.FC = () => {
           </div>
         </div>
 
+        
+
+        {/* PDF Preview */}
+        <div style={pageStyles.rightPanel}>
+          <p style={{ ...pageStyles.checkboxGroupLabel, margin: "0 0 12px 0", fontWeight: "bold" }}>PDF preview</p>
+          <div style={pageStyles.previewBox}>
+            <PDFViewer width="100%" height="100%" style={{ border: "none", minHeight: "1000px" }}>
+              <ReportDocument reportData={reportData} sections={sections} />
+            </PDFViewer>
+          </div>
+        </div>
+
         <div style={pageStyles.footer}>
           <button
             onClick={() => navigate("/dashboard")}
@@ -326,16 +338,6 @@ const ReportPage: React.FC = () => {
           >
             Download
           </button>
-        </div>
-
-        {/* PDF Preview */}
-        <div style={pageStyles.rightPanel}>
-          <p style={{ ...pageStyles.checkboxGroupLabel, margin: "0 0 12px 0", fontWeight: "bold" }}>PDF preview</p>
-          <div style={pageStyles.previewBox}>
-            <PDFViewer width="100%" height="100%" style={{ border: "none", minHeight: "1000px" }}>
-              <ReportDocument reportData={reportData} sections={sections} />
-            </PDFViewer>
-          </div>
         </div>
       </div>
     </div>
