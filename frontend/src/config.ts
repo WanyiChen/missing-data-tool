@@ -4,7 +4,6 @@ import axios from 'axios';
 const config = {
   apiBaseUrl: 'https://missing-data-tool-backend.onrender.com',
 };
-console.log('API Base URL:', config.apiBaseUrl);
 
 // Create axios instance with base URL
 const api = axios.create({
