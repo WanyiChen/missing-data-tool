@@ -1,10 +1,6 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-import os
-import pandas as pd
-import io
-import json
 
 app = FastAPI()
 
@@ -25,7 +21,7 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"message": "Missing Data Tool Backend is running"}
+    return {"message": "Missing Data Tool Backend is running", "Python": "on Vercel"}
 
 @app.get("/api/health")
 async def health():
