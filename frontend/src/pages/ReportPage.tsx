@@ -314,34 +314,30 @@ const ReportPage: React.FC = () => {
         </div>
 
         <div style={pageStyles.footer}>
-        <button
-          onClick={() => navigate("/dashboard")}
-          className={`${styles.button} ${styles.secondary}`}
-
-        >
-          Back
-        </button>
-        <button
-          onClick={handleDownloadPDF}
-          className={`${styles.button} ${styles.primary}`}
-
-        >
-          Download
-        </button>
-      </div>
+          <button
+            onClick={() => navigate("/dashboard")}
+            className={`${styles.button} ${styles.secondary}`}
+          >
+            Back
+          </button>
+          <button
+            onClick={handleDownloadPDF}
+            className={`${styles.button} ${styles.primary}`}
+          >
+            Download
+          </button>
+        </div>
 
         {/* PDF Preview */}
         <div style={pageStyles.rightPanel}>
-          <div style={{ marginBottom: "24px" }}></div>
-          <p style={{ ...pageStyles.checkboxGroupLabel, margin: "0", fontWeight: "bold" }}>PDF preview</p>
+          <p style={{ ...pageStyles.checkboxGroupLabel, margin: "0 0 12px 0", fontWeight: "bold" }}>PDF preview</p>
           <div style={pageStyles.previewBox}>
-            <PDFViewer width="100%" height="900px" style={{ border: "none" }}>
+            <PDFViewer width="100%" height="100%" style={{ border: "none", minHeight: "1000px" }}>
               <ReportDocument reportData={reportData} sections={sections} />
             </PDFViewer>
           </div>
         </div>
       </div>
-
     </div>
   );
 };
@@ -355,15 +351,14 @@ const pageStyles: Record<string, React.CSSProperties> = {
     fontFamily: "'Segoe UI', system-ui, sans-serif",
     fontSize: "14px",
     color: "#111",
-    justifyContent: "center",
-    alignItems: "center",
   },
   titleBar: {
-    margin: "2%"
+    padding: "16px 24px",
+    borderBottom: "1px solid #d1d5db",
   },
   titleText: {
     fontWeight: 600,
-    fontSize: "15px"
+    fontSize: "18px"
   },
   body: {
     display: "flex",
@@ -374,11 +369,12 @@ const pageStyles: Record<string, React.CSSProperties> = {
   leftPanel: {
     width: "100%",
     flexShrink: 0,
-    padding: "5px 24px",
+    padding: "20px 24px",
+    borderBottom: "1px solid #d1d5db",
   },
   checkboxGroupLabel: {
     fontWeight: 500,
-    fontSize: "13px",
+    fontSize: "14px",
     marginBottom: "12px",
     lineHeight: "1.4",
   },
@@ -390,28 +386,27 @@ const pageStyles: Record<string, React.CSSProperties> = {
   },
   rightPanel: {
     flex: 1,
-    backgroundColor: "#e5e7eb",
-    padding: "0 24px 24px 24px",
-    borderRadius: "6px",
+    backgroundColor: "#f3f4f6",
+    padding: "16px 24px",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
   },
   previewBox: {
-  height: "auto",
-  backgroundColor: "#e5e7eb", 
-  padding: "24px",
-  display: "flex",
-  justifyContent: "center",
-},
-  previewArea: {
-    minHeight: "100%",
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: "8px",
+    overflow: "hidden",
     display: "flex",
-    justifyContent: "center",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
   },
   footer: {
-    padding: "15px 20px",
+    padding: "16px 24px",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: "1%",
+    borderBottom: "1px solid #d1d5db",
+    gap: "12px",
   },
 };
 
