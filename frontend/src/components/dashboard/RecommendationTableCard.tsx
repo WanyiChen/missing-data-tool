@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../../config";
+import { ModalLink } from "../common/modal";
 
 interface RecommendationData {
     recommendation_type: string;
@@ -8,8 +9,19 @@ interface RecommendationData {
 }
 
 interface RecommendationTableCardProps {
-    onInfoClick?: (message: string) => void;
+    onInfoClick?: (message: string, recommendationType?: string) => void;
 }
+
+
+const recommendationExplanations: Record<string, string> = {
+    "Missing-indicator method": 'The missing-indicator method adds binary dummy variables to indicate which values were originally missing and have been imputed. For example, if “Feature_1” contains missing data, it will add a feature “Feature_1_missing” in addition to imputing Feature_1.',
+    "Remove Features": "No explanation available.",
+    "Create an 'unknown' category or consider adjusting the categories": "For categorical variables, an \"unknown\" category can be created to replace missing data. For example:",
+    "multiple imputation": "Multiple imputation imputes missing values multiple times, producing multiple complete datasets with imputed values. Each imputed dataset is analyzed separately, and the results are pooled together using statistical rules. This method assumes MAR. It is the uncertainty of missing data into consideration, but it’s computationally intensive. For machine learning, Multiple Imputation by Chained Equations (MICE) is a common implementation.",
+    "Machine learning algorithms that can directly handle missing data or multiple imputation": "Several types of machine learning algorithms, such as generalized additive models, decision trees, and tree-based algorithms such as XGBoost, can automatically handle missing data. Depending on the libraries used and the parameters set, these algorithms employ a wide range of missing data treatment methods.",
+    "All methods are valid: complete case analysis, machine learning algorithms that can directly handle missing data, multiple imputation, etc.": "No explanation available."
+};
+
 
 // Enhanced error types for better error handling
 interface ApiErrorResponse {
@@ -18,7 +30,9 @@ interface ApiErrorResponse {
     error_type?: string;
 }
 
-const RecommendationTableCard: React.FC<RecommendationTableCardProps> = () => {
+const RecommendationTableCard: React.FC<RecommendationTableCardProps> = ({
+    onInfoClick,
+}: RecommendationTableCardProps) => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [errorType, setErrorType] = useState<string | null>(null);
@@ -27,17 +41,24 @@ const RecommendationTableCard: React.FC<RecommendationTableCardProps> = () => {
     >([]);
     const [retryCount, setRetryCount] = useState(0);
 
-    const getErrorMessage = (error: any): { message: string; type: string } => {
+    const getErrorMessage = (
+        error: unknown
+    ): { message: string; type: string } => {
+        const apiError = error as {
+            response?: { status?: number; data?: ApiErrorResponse };
+            code?: string;
+        };
+
         // Network errors (no response received)
-        if (!error.response) {
-            if (error.code === "ECONNABORTED") {
+        if (!apiError.response) {
+            if (apiError.code === "ECONNABORTED") {
                 return {
                     message:
                         "Request timed out. Please check your connection and try again.",
                     type: "timeout",
                 };
             }
-            if (error.code === "ERR_NETWORK") {
+            if (apiError.code === "ERR_NETWORK") {
                 return {
                     message:
                         "Network error. Please check your internet connection.",
@@ -52,8 +73,8 @@ const RecommendationTableCard: React.FC<RecommendationTableCardProps> = () => {
         }
 
         // Server responded with error status
-        const status = error.response.status;
-        const data = error.response.data as ApiErrorResponse;
+    const status = apiError.response.status;
+    const data = apiError.response.data;
 
         switch (status) {
             case 400:
@@ -92,7 +113,14 @@ const RecommendationTableCard: React.FC<RecommendationTableCardProps> = () => {
         }
     };
 
-    const fetchRecommendations = async (isRetry: boolean = false) => {
+    const retryCountRef = React.useRef(retryCount);
+
+    // keep ref in sync
+    React.useEffect(() => {
+        retryCountRef.current = retryCount;
+    }, [retryCount]);
+
+    const fetchRecommendations = React.useCallback(async (isRetry: boolean = false) => {
         if (!isRetry) {
             setLoading(true);
             setError(null);
@@ -120,7 +148,7 @@ const RecommendationTableCard: React.FC<RecommendationTableCardProps> = () => {
                 setErrorType("api_error");
                 console.warn("API returned success=false:", res.data);
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             const errorInfo = getErrorMessage(err);
             setError(errorInfo.message);
             setErrorType(errorInfo.type);
@@ -130,14 +158,14 @@ const RecommendationTableCard: React.FC<RecommendationTableCardProps> = () => {
                 error: err,
                 message: errorInfo.message,
                 type: errorInfo.type,
-                status: err.response?.status,
-                data: err.response?.data,
+                status: (err as { response?: { status?: number } })?.response?.status,
+                data: (err as { response?: { data?: unknown } })?.response?.data,
                 retryCount: retryCount,
             });
 
             // Auto-retry for certain error types (max 2 retries)
             if (
-                retryCount < 2 &&
+                retryCountRef.current < 2 &&
                 ["timeout", "network", "service_unavailable"].includes(
                     errorInfo.type
                 )
@@ -145,12 +173,12 @@ const RecommendationTableCard: React.FC<RecommendationTableCardProps> = () => {
                 setTimeout(() => {
                     setRetryCount((prev) => prev + 1);
                     fetchRecommendations(true);
-                }, Math.pow(2, retryCount) * 1000); // Exponential backoff: 1s, 2s
+                }, Math.pow(2, retryCountRef.current) * 1000); // Exponential backoff: 1s, 2s
             }
         } finally {
             setLoading(false);
         }
-    };
+    }, [retryCount]);
 
     useEffect(() => {
         // Delay initial fetch to allow correlation analysis to complete
@@ -159,7 +187,7 @@ const RecommendationTableCard: React.FC<RecommendationTableCardProps> = () => {
         }, 2000); // Wait 2 seconds for correlation analysis
         
         return () => clearTimeout(timer);
-    }, []);
+    }, [fetchRecommendations]);
 
     useEffect(() => {
         const handleDataTypeChange = () => {
@@ -171,7 +199,7 @@ const RecommendationTableCard: React.FC<RecommendationTableCardProps> = () => {
 
         window.addEventListener('dataTypeChanged', handleDataTypeChange);
         return () => window.removeEventListener('dataTypeChanged', handleDataTypeChange);
-    }, []);
+    }, [fetchRecommendations]);
 
 
     const formatFeatureList = (features: string[]): React.ReactElement => {
@@ -307,9 +335,15 @@ const RecommendationTableCard: React.FC<RecommendationTableCardProps> = () => {
                                         </td>
                                         <td className="py-3 px-2 border text-center align-top">
                                             <div className="text-xs sm:text-sm break-words">
-                                                {
-                                                    recommendation.recommendation_type
-                                                }
+                                                <ModalLink
+                                                    text={`${recommendation.recommendation_type}`}
+                                                    onClick={() => {
+                                                        onInfoClick?.(
+                                                            (recommendationExplanations[recommendation.recommendation_type] || "No explanation available"),
+                                                            recommendation.recommendation_type
+                                                        );
+                                                    }}
+                                                />
                                             </div>
                                         </td>
                                         <td className="py-3 px-2 border text-left align-top">

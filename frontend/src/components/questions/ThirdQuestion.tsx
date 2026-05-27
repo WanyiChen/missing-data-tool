@@ -21,7 +21,7 @@ interface ThirdQuestionProps {
 
 interface DatasetPreview {
     title_row: string[];
-    data_rows: any[][];
+    data_rows: (string | number | null | undefined)[][];
 }
 
 const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
@@ -73,10 +73,13 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                             "Failed to load dataset preview."
                     );
                 }
-            } catch (error: any) {
+            } catch (error: unknown) {
                 let message = "Failed to load dataset preview.";
-                if (error.response?.data?.message) {
-                    message = error.response.data.message;
+                if (error && typeof error === 'object' && 'response' in error) {
+                    const err = error as { response?: { data?: { message?: string } } };
+                    if (err.response?.data?.message) {
+                        message = err.response.data.message;
+                    }
                 }
                 onError(message);
             } finally {
@@ -172,10 +175,13 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                         "Failed to save target feature configuration."
                 );
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             let message = "Failed to save target feature configuration.";
-            if (error.response?.data?.message) {
-                message = error.response.data.message;
+            if (error && typeof error === 'object' && 'response' in error) {
+                const err = error as { response?: { data?: { message?: string } } };
+                if (err.response?.data?.message) {
+                    message = err.response.data.message;
+                }
             }
             onError(message);
         } finally {
@@ -208,15 +214,27 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                         "Failed to skip target feature configuration."
                 );
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             let message = "Failed to skip target feature configuration.";
-            if (error.response?.data?.message) {
-                message = error.response.data.message;
+            if (error && typeof error === 'object' && 'response' in error) {
+                const err = error as { response?: { data?: { message?: string } } };
+                if (err.response?.data?.message) {
+                    message = err.response.data.message;
+                }
             }
             onError(message);
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handleContinue = () => {
+        if (canProceed) {
+            void handleNext();
+            return;
+        }
+
+        void handleSkip();
     };
 
     return (
@@ -384,24 +402,14 @@ const ThirdQuestion: React.FC<ThirdQuestionProps> = ({
                     >
                         Back
                     </button>
-                    <div className="flex gap-4">
-                        <button
-                            className={`${styles.button} ${styles.secondary} ml-2`}
-                            onClick={handleSkip}
-                            disabled={isSubmitting}
-                            style={{ minWidth: 80 }}
-                        >
-                            {isSubmitting ? "Saving..." : "Skip"}
-                        </button>
-                        <button
-                            className={`${styles.button} ${styles.primary} ml-2`}
-                            disabled={!canProceed || isSubmitting}
-                            onClick={handleNext}
-                            style={{ minWidth: 80 }}
-                        >
-                            {isSubmitting ? "Saving..." : "Next"}
-                        </button>
-                    </div>
+                    <button
+                        className={`${styles.button} ${styles.primary} ml-2`}
+                        disabled={isSubmitting}
+                        onClick={handleContinue}
+                        style={{ minWidth: 80 }}
+                    >
+                        {isSubmitting ? "Saving..." : "Next"}
+                    </button>
                 </div>
             </div>
         </div>
