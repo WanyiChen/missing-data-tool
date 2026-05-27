@@ -1,11 +1,18 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
 import LandingPage from "./pages/LandingPage";
 import DashboardPage from "./pages/DashboardPage";
 import DeleteAllMissingPage from "./pages/DeleteAllMissingPage";
 import MissingDataMechanismPage from "./pages/MissingDataMechanismPage";
 import ReportPage from "./pages/ReportPage";
+import { startBackendWarmup, stopBackendWarmup } from "./utils/backendWarmup";
 
 function App() {
+    useEffect(() => {
+        startBackendWarmup();
+        return () => stopBackendWarmup();
+    }, []);
+
     return (
         <Router>
             <div className="min-h-screen flex flex-col pb-16">

@@ -27,6 +27,10 @@ app.add_middleware(
 async def root():
     return {"message": "Missing Data Tool Backend is running"}
 
+@app.get("/api/health")
+async def health():
+    return {"status": "ok", "message": "Backend is healthy"}
+
 # Import routers from new modules
 from routes.validation_routes import router as validation_router
 from routes.dashboard_routes import router as dashboard_router

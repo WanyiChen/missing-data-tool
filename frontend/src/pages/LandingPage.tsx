@@ -5,6 +5,8 @@ import FirstQuestion from "../components/questions/FirstQuestion";
 import SecondQuestion from "../components/questions/SecondQuestion";
 import ThirdQuestion from "../components/questions/ThirdQuestion";
 import { Modal } from "../components/common/modal";
+import { BackendWarmupLoader } from "../components/common/BackendWarmupLoader";
+import { warmupBackend } from "../utils/backendWarmup";
 import styles from "../components/common/Button.module.css";
 
 const MAX_SIZE_MB = 100;
@@ -40,6 +42,7 @@ function ErrorModal({
 
 export default function LandingPage() {
     const [uploading, setUploading] = useState(false);
+    const [warmingUp, setWarmingUp] = useState(true);
     const [errorModal, setErrorModal] = useState<{
         open: boolean;
         message: string;
@@ -60,13 +63,17 @@ export default function LandingPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
 
+    // Warmup backend on mount
+    useEffect(() => {
+        warmupBackend().finally(() => setWarmingUp(false));
+    }, []);
 
     // Check for step parameter in URL
     useEffect(() => {
         const stepParam = searchParams.get('step');
         if (stepParam === '3') {
             setStep(3);
-            setFeatureNames(true); // Assume feature names exist for step 3
+            setFeatureNames(true);
         }
     }, [searchParams]);
 
@@ -192,6 +199,7 @@ export default function LandingPage() {
                 errorModal.open ? "overflow-hidden h-screen" : ""
             }`}
         >
+            {warmingUp && <BackendWarmupLoader />}
             {errorModal.open && (
                 <ErrorModal
                     message={errorModal.message}
