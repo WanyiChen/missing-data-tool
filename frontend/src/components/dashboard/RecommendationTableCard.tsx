@@ -181,20 +181,17 @@ const RecommendationTableCard: React.FC<RecommendationTableCardProps> = ({
     }, [retryCount]);
 
     useEffect(() => {
-        // Delay initial fetch to allow correlation analysis to complete
-        const timer = setTimeout(() => {
+        const handleMissingDataTableReady = () => {
             fetchRecommendations();
-        }, 2000); // Wait 2 seconds for correlation analysis
-        
-        return () => clearTimeout(timer);
+        };
+
+        window.addEventListener('missingDataTableReady', handleMissingDataTableReady);
+        return () => window.removeEventListener('missingDataTableReady', handleMissingDataTableReady);
     }, [fetchRecommendations]);
 
     useEffect(() => {
         const handleDataTypeChange = () => {
-            // Also delay when data types change
-            setTimeout(() => {
-                fetchRecommendations();
-            }, 1000);
+            fetchRecommendations();
         };
 
         window.addEventListener('dataTypeChanged', handleDataTypeChange);

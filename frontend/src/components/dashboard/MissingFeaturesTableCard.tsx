@@ -236,6 +236,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                 });
                 
                 setFeatures(updatedFeatures);
+                window.dispatchEvent(new CustomEvent('missingDataTableReady'));
             } else {
                 setError(res.data.message || "Failed to fetch data");
             }
