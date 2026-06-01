@@ -140,13 +140,16 @@ const ReportDocument: React.FC<Props> = ({ reportData, sections }) => {
 
   const { mechanism, caseCount, featureCount, missingFeatures, completeFeatures, recommendations, hasTargetFeature, targetFeatureName, fileName } = reportData;
 
+  // remove file extension for display
+  const displayFileName = fileName.replace(/\.[^/.]+$/, "");
+
   return (
-    <Document>
+    <Document title={`Missing Data Report - ${displayFileName}`} author="Missing Data Tool" creator="Missing Data Tool">
       <Page size="A4" style={s.page}>
         {/* Header */}
         <View style={s.docHeader}>
           <Text style={s.docTitle}>Missing data report</Text>
-          <Text style={s.docSubtitle}>File: {fileName}</Text>
+          <Text style={s.docSubtitle}>File: {displayFileName}</Text>
         </View>
 
         {/* Summary */}
