@@ -15,11 +15,9 @@ interface RecommendationTableCardProps {
 
 const recommendationExplanations: Record<string, string> = {
     "Missing-indicator method": 'The missing-indicator method adds binary dummy variables to indicate which values were originally missing and have been imputed. For example, if “Feature_1” contains missing data, it will add a feature “Feature_1_missing” in addition to imputing Feature_1.',
-    "Remove Features": "No explanation available.",
     "Create an 'unknown' category or consider adjusting the categories": "For categorical variables, an \"unknown\" category can be created to replace missing data. For example:",
     "multiple imputation": "Multiple imputation imputes missing values multiple times, producing multiple complete datasets with imputed values. Each imputed dataset is analyzed separately, and the results are pooled together using statistical rules. This method assumes MAR. It is the uncertainty of missing data into consideration, but it’s computationally intensive. For machine learning, Multiple Imputation by Chained Equations (MICE) is a common implementation.",
-    "Machine learning algorithms that can directly handle missing data or multiple imputation": "Several types of machine learning algorithms, such as generalized additive models, decision trees, and tree-based algorithms such as XGBoost, can automatically handle missing data. Depending on the libraries used and the parameters set, these algorithms employ a wide range of missing data treatment methods.",
-    "All methods are valid: complete case analysis, machine learning algorithms that can directly handle missing data, multiple imputation, etc.": "No explanation available."
+    "Machine learning algorithms that can directly handle missing data": "Several types of machine learning algorithms, such as generalized additive models, decision trees, and tree-based algorithms such as XGBoost, can automatically handle missing data. Depending on the libraries used and the parameters set, these algorithms employ a wide range of missing data treatment methods.",
 };
 
 
@@ -332,15 +330,41 @@ const RecommendationTableCard: React.FC<RecommendationTableCardProps> = ({
                                         </td>
                                         <td className="py-3 px-2 border text-center align-top">
                                             <div className="text-xs sm:text-sm break-words">
-                                                <ModalLink
-                                                    text={`${recommendation.recommendation_type}`}
-                                                    onClick={() => {
-                                                        onInfoClick?.(
-                                                            (recommendationExplanations[recommendation.recommendation_type] || "No explanation available"),
-                                                            recommendation.recommendation_type
-                                                        );
-                                                    }}
-                                                />
+                                                {recommendation.recommendation_type === "Machine learning algorithms that can directly handle missing data or multiple imputation" ? (
+                                                    <span>
+                                                        <ModalLink
+                                                            text="Machine learning algorithms that can directly handle missing data"
+                                                            onClick={() => {
+                                                                onInfoClick?.(
+                                                                    recommendationExplanations["Machine learning algorithms that can directly handle missing data"],
+                                                                    "Machine learning algorithms that can directly handle missing data"
+                                                                );
+                                                            }}
+                                                        />
+                                                        <span className="text-black"> or </span>
+                                                        <ModalLink
+                                                            text="multiple imputation"
+                                                            onClick={() => {
+                                                                onInfoClick?.(
+                                                                    recommendationExplanations["multiple imputation"],
+                                                                    "multiple imputation"
+                                                                );
+                                                            }}
+                                                        />
+                                                    </span>
+                                                ) : recommendationExplanations[recommendation.recommendation_type] ? (
+                                                    <ModalLink
+                                                        text={`${recommendation.recommendation_type}`}
+                                                        onClick={() => {
+                                                            onInfoClick?.(
+                                                                recommendationExplanations[recommendation.recommendation_type],
+                                                                recommendation.recommendation_type
+                                                            );
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <span className="text-black">{recommendation.recommendation_type}</span>
+                                                )}
                                             </div>
                                         </td>
                                         <td className="py-3 px-2 border text-left align-top">
