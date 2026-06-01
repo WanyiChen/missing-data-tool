@@ -834,13 +834,13 @@ def _get_mechanism_explanation(dataset_mechanism: str) -> str:
     mechanism_lower = dataset_mechanism.lower()
     
     if "mcar" in mechanism_lower:
-        return "(Missing Completely at Random)"
+        return "Missing Completely at Random"
     elif "mar" in mechanism_lower and "mnar" in mechanism_lower:
-        return "(Missing at Random or Missing Not at Random)"
+        return "Missing at Random or Missing Not at Random"
     elif "mar" in mechanism_lower:
-        return "(Missing at Random)"
+        return "Missing at Random"
     elif "mnar" in mechanism_lower:
-        return "(Missing Not at Random)"
+        return "Missing Not at Random"
     else:
         return ""
 
