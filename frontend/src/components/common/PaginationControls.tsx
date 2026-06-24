@@ -45,17 +45,6 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
                 >
                     Next
                 </button>
-                <select
-                    value={pagination.limit}
-                    onChange={(e) => onPageChange(0, parseInt(e.target.value))}
-                    disabled={loading}
-                    className="text-sm border rounded px-2 py-1 disabled:opacity-50 cursor-pointer"
-                >
-                    <option value={10}>10 per page</option>
-                    <option value={25}>25 per page</option>
-                    <option value={50}>50 per page</option>
-                    <option value={100}>100 per page</option>
-                </select>
             </div>
         </div>
     );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import api from "../../config";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
@@ -50,7 +50,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
     const [features, setFeatures] = useState<CompleteFeatureData[]>([]);
     const [pagination, setPagination] = useState({
         page: 0,
-        limit: 10,
+        limit: 15,
         total: 0,
         total_pages: 0,
         has_next: false,
@@ -278,7 +278,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
 
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    }, [closeDataTypeDropdown, closeDataTypeFilterDropdown, closeCorrelationFilterDropdown, closeCorrelationDetailsDropdown]);
 
     const toggleCorrelationDetailsDropdown = (
         featureName: string,
@@ -352,9 +352,9 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                     )
                 );
 
-                features.forEach((feature: CompleteFeatureData) => {
-                loadFeatureAnalysis(feature.feature_name);
-            });
+                featuresRef.current.forEach((feature: CompleteFeatureData) => {
+                    loadFeatureAnalysisRef.current(feature.feature_name);
+                });
 
                 // Notify other components
                 window.dispatchEvent(new CustomEvent('dataTypeChanged'));
@@ -368,13 +368,13 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                     `Failed to update data type for ${featureName}: ${errorMsg}`
                 );
             }
-        } catch (err: any) {
+        } catch (err) {
             const errorInfo = getErrorMessage(err);
             console.error("Error updating data type:", {
                 feature: featureName,
                 newType,
-                error: err.message,
-                status: err.response?.status,
+                error: err instanceof Error ? err.message : 'Unknown error',
+                status: err && typeof err === 'object' && 'response' in err ? (err as {response?: {status?: number}}).response?.status : undefined,
             });
 
             // Show user-friendly error message
@@ -435,17 +435,24 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
         }
     };
 
-    const getErrorMessage = (error: any): { message: string; type: string } => {
+
+    const getErrorMessage = useCallback((error: unknown): { message: string; type: string } => {
+        // Normalize unknown error to a safe any for inspection
+        const err = error as {
+            response?: { status?: number; data?: unknown };
+            code?: string;
+            message?: string;
+        };
         // Network errors (no response received)
-        if (!error.response) {
-            if (error.code === "ECONNABORTED") {
+        if (!err.response) {
+            if (err.code === "ECONNABORTED") {
                 return {
                     message:
                         "Request timed out. Please check your connection and try again.",
                     type: "timeout",
                 };
             }
-            if (error.code === "ERR_NETWORK") {
+            if (err.code === "ERR_NETWORK") {
                 return {
                     message:
                         "Network error. Please check your internet connection.",
@@ -460,11 +467,12 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
         }
 
         // HTTP status errors
-        const status = error.response.status;
+        const status = err.response.status;
+        const responseData = err.response.data as { message?: string };
         switch (status) {
             case 400:
                 return {
-                    message: error.response.data?.message || "Invalid request.",
+                    message: responseData?.message || "Invalid request.",
                     type: "validation",
                 };
             case 404:
@@ -486,123 +494,15 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
             default:
                 return {
                     message:
-                        error.response.data?.message ||
+                        responseData?.message ||
                         "An unexpected error occurred.",
                     type: "unknown",
                 };
         }
-    };
-
-    const fetchFeaturesData = async (page: number = 0, limit: number = 10, isRetry: boolean = false) => {
-        if (!isRetry) {
-            setLoading(true);
-            setError(null);
-            setErrorType(null);
-        }
-
-        try {
-            const res = await api.get(`/api/complete-features-table?page=${page}&limit=${limit}`, {
-                timeout: 30000, // 30 second timeout
-                headers: {
-                    "Cache-Control": "no-cache",
-                },
-            });
-
-            if (res.data.success) {
-                // Initialize features with loading states
-                const featuresWithLoading = res.data.features.map(
-                    (feature: CompleteFeatureData) => ({
-                        ...feature,
-                        isLoadingCorrelation: true,
-                    })
-                );
-                setFeatures(featuresWithLoading);
-                setPagination(res.data.pagination);
-                setError(null);
-                setErrorType(null);
-                setRetryCount(0);
-
-                // Start loading detailed analysis for each feature
-                featuresWithLoading.forEach((feature: CompleteFeatureData) => {
-                    loadFeatureAnalysis(feature.feature_name);
-                });
-            } else {
-                const errorMsg =
-                    res.data.message ||
-                    "Failed to fetch complete features data";
-                setError(errorMsg);
-                setErrorType("validation");
-            }
-        } catch (err: any) {
-            const errorInfo = getErrorMessage(err);
-            setError(errorInfo.message);
-            setErrorType(errorInfo.type);
-
-            console.error("Error fetching complete features data:", {
-                message: err.message,
-                status: err.response?.status,
-                data: err.response?.data,
-                retryCount: retryCount,
-            });
-
-            // Auto-retry for certain error types (max 2 retries)
-            if (
-                retryCount < 2 &&
-                ["timeout", "network", "service_unavailable"].includes(
-                    errorInfo.type
-                )
-            ) {
-                setTimeout(() => {
-                    setRetryCount((prev) => prev + 1);
-                    fetchFeaturesData(page, limit, true);
-                }, Math.pow(2, retryCount) * 1000); // Exponential backoff: 1s, 2s
-            } else if (errorInfo.type === "server_error" && retryCount >= 2) {
-                // If server is completely down after retries, show degraded mode message
-                setError(
-                    "Server is currently unavailable. Some features may not work properly."
-                );
-                setErrorType("degraded");
-            }
-        } finally {
-            if (!isRetry) {
-                setLoading(false);
-            }
-        }
-    };
-
-    // Load basic feature data
-    useEffect(() => {
-        fetchFeaturesData();
     }, []);
 
-    // Reload feature analysis when correlation filter thresholds change
-    useEffect(() => {
-        if (features.length === 0) return;
-
-        // Set loading state for all features
-        setFeatures(prevFeatures => 
-            prevFeatures.map(feature => ({
-                ...feature,
-                isLoadingCorrelation: true
-            }))
-        );
-
-        // Debounce API calls to prevent excessive requests
-        const timeoutId = setTimeout(() => {
-            features.forEach((feature: CompleteFeatureData) => {
-                loadFeatureAnalysis(feature.feature_name);
-            });
-        }, 500); // 500ms debounce
-
-        return () => clearTimeout(timeoutId);
-    }, [
-        correlationFilter.pearsonThreshold,
-        correlationFilter.cramerVThreshold,
-        correlationFilter.etaThreshold,
-    ]);
-
-    // Load detailed analysis for a specific feature
-    const loadFeatureAnalysis = async (
+     // Load detailed analysis for a specific feature
+    const loadFeatureAnalysis = useCallback(async (
         featureName: string,
         retryAttempt: number = 0
     ) => {
@@ -658,11 +558,11 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                     )
                 );
             }
-        } catch (err: any) {
+        } catch (err) {
             const errorInfo = getErrorMessage(err);
             console.error(`Error loading analysis for ${featureName}:`, {
-                message: err.message,
-                status: err.response?.status,
+                message: err instanceof Error ? err.message : 'Unknown error',
+                status: err && typeof err === 'object' && 'response' in err ? (err as {response?: {status?: number}}).response?.status : undefined,
                 attempt: retryAttempt + 1,
             });
 
@@ -691,8 +591,131 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                 )
             );
         }
+    }, [correlationFilter.pearsonThreshold, correlationFilter.cramerVThreshold, correlationFilter.etaThreshold, getErrorMessage]);
+
+    // Store current features in a ref to avoid dependency issues
+    const featuresRef = useRef<CompleteFeatureData[]>([]);
+    useEffect(() => {
+        featuresRef.current = features;
+    }, [features]);
+
+    // Keep a ref to loadFeatureAnalysis for stable reference in callbacks
+    const loadFeatureAnalysisRef = useRef(loadFeatureAnalysis);
+    useEffect(() => {
+        loadFeatureAnalysisRef.current = loadFeatureAnalysis;
+    }, [loadFeatureAnalysis]);
+
+
+    const fetchFeaturesData = async (page: number = 0, limit: number = 15, isRetry: boolean = false) => {
+        if (!isRetry) {
+            setLoading(true);
+            setError(null);
+            setErrorType(null);
+        }
+
+        try {
+            const res = await api.get(`/api/complete-features-table?page=${page}&limit=${limit}`, {
+                timeout: 30000, // 30 second timeout
+                headers: {
+                    "Cache-Control": "no-cache",
+                },
+            });
+
+            if (res.data.success) {
+                // Initialize features with loading states
+                const featuresWithLoading = res.data.features.map(
+                    (feature: CompleteFeatureData) => ({
+                        ...feature,
+                        isLoadingCorrelation: true,
+                    })
+                );
+                setFeatures(featuresWithLoading);
+                setPagination(res.data.pagination);
+                setError(null);
+                setErrorType(null);
+                setRetryCount(0);
+
+                // Start loading detailed analysis for each feature
+                featuresWithLoading.forEach((feature: CompleteFeatureData) => {
+                    loadFeatureAnalysis(feature.feature_name);
+                });
+            } else {
+                const errorMsg =
+                    res.data.message ||
+                    "Failed to fetch complete features data";
+                setError(errorMsg);
+                setErrorType("validation");
+            }
+        } catch (err) {
+            const errorInfo = getErrorMessage(err);
+            setError(errorInfo.message);
+            setErrorType(errorInfo.type);
+
+            console.error("Error fetching complete features data:", {
+                message: err instanceof Error ? err.message : 'Unknown error',
+                status: err && typeof err === 'object' && 'response' in err ? (err as {response?: {status?: number}}).response?.status : undefined,
+                data: err && typeof err === 'object' && 'response' in err ? (err as {response?: {data?: unknown}}).response?.data : undefined,
+                retryCount: retryCount,
+            });
+
+            // Auto-retry for certain error types (max 2 retries)
+            if (
+                retryCount < 2 &&
+                ["timeout", "network", "service_unavailable"].includes(
+                    errorInfo.type
+                )
+            ) {
+                setTimeout(() => {
+                    setRetryCount((prev) => prev + 1);
+                    fetchFeaturesData(page, limit, true);
+                }, Math.pow(2, retryCount) * 1000); // Exponential backoff: 1s, 2s
+            } else if (errorInfo.type === "server_error" && retryCount >= 2) {
+                // If server is completely down after retries, show degraded mode message
+                setError(
+                    "Server is currently unavailable. Some features may not work properly."
+                );
+                setErrorType("degraded");
+            }
+        } finally {
+            if (!isRetry) {
+                setLoading(false);
+            }
+        }
     };
 
+    // Load basic feature data
+    useEffect(() => {
+        fetchFeaturesData();
+    }, []);
+
+    // Reload feature analysis when correlation filter thresholds change
+    useEffect(() => {
+        if (featuresRef.current.length === 0) return;
+
+        // Set loading state for all features
+        setFeatures(prevFeatures =>
+            prevFeatures.map(feature => ({
+                ...feature,
+                isLoadingCorrelation: true
+            }))
+        );
+
+        // Debounce API calls to prevent excessive requests
+        const timeoutId = setTimeout(() => {
+            featuresRef.current.forEach((feature: CompleteFeatureData) => {
+                loadFeatureAnalysis(feature.feature_name);
+            });
+        }, 500); // 500ms debounce
+
+        return () => clearTimeout(timeoutId);
+    }, [
+        correlationFilter.pearsonThreshold,
+        correlationFilter.cramerVThreshold,
+        correlationFilter.etaThreshold,
+        loadFeatureAnalysis,
+    ]);
+
+   
     // Filter features based on data type filter and correlation filter
     const filteredFeatures = features.filter((feature: CompleteFeatureData) => {
         try {
@@ -793,14 +816,14 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
     useEffect(() => {
         const handleDataTypeChanged = () => {
             // Reload correlations for all features when any data type changes
-            features.forEach((feature: CompleteFeatureData) => {
-                loadFeatureAnalysis(feature.feature_name);
+            featuresRef.current.forEach((feature: CompleteFeatureData) => {
+                loadFeatureAnalysisRef.current(feature.feature_name);
             });
         };
 
         window.addEventListener('dataTypeChanged', handleDataTypeChanged);
         return () => window.removeEventListener('dataTypeChanged', handleDataTypeChanged);
-    }, [features]);
+    }, []);
 
 
     return (
@@ -823,7 +846,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
             <div
                 className={`overflow-hidden transition-all duration-300 ease-in-out ${
                     isExpanded
-                        ? "max-h-screen opacity-100"
+                        ? "opacity-100"
                         : "max-h-0 opacity-0"
                 }`}
             >
@@ -917,7 +940,7 @@ const CompleteFeaturesTableCard: React.FC<CompleteFeaturesTableCardProps> = ({
                             Data types are auto-detected. Please click to change if necessary.
                         </div>
                     
-                    <div ref={tableContainerRef} className="justify-center items-center flex">
+                    <div ref={tableContainerRef} className="justify-center items-center flex overflow-x-auto">
 
                         <table className="text-sm bg-white">
                             {/* <thead className="sticky top-0 bg-white z-10 after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-px after:bg-gray-700">

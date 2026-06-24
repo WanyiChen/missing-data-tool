@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import api from "../../config";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
@@ -14,6 +14,7 @@ import {
 import type { SortOption, DataTypeFilter, CorrelationFilter } from "./filter";
 import { ModalLink } from "../common/modal";
 import PaginationControls from "../common/PaginationControls";
+import { AxiosError } from 'axios';
 
 interface FeatureData {
     feature_name: string;
@@ -55,7 +56,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
     const [features, setFeatures] = useState<FeatureData[]>([]);
     const [pagination, setPagination] = useState({
         page: 0,
-        limit: 10,
+        limit: 15,
         total: 0,
         total_pages: 0,
         has_next: false,
@@ -172,6 +173,35 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
         percentage: "No Sort",
     });
 
+        // Load detailed analysis for a specific feature (returns promise)
+    const loadFeatureAnalysisPromise = useCallback(async (featureName: string) => {
+        try {
+            const params = new URLSearchParams({
+                pearson_threshold:
+                    correlationFilter.pearsonThreshold.toString(),
+                cramer_v_threshold:
+                    correlationFilter.cramerVThreshold.toString(),
+                eta_squared_threshold:
+                    correlationFilter.etaThreshold.toString(),
+            });
+
+            const res = await api.get(
+                `/api/feature-details/${encodeURIComponent(
+                    featureName
+                )}?${params}`
+            );
+            if (res.data.success) {
+                return res.data;
+            }
+            return null;
+        } catch (err) {
+            console.error(`Error loading analysis for ${featureName}:`, err);
+            return null;
+        }
+    }, [correlationFilter.pearsonThreshold, correlationFilter.cramerVThreshold, correlationFilter.etaThreshold]);
+
+    
+
     // Check if target feature exists
     useEffect(() => {
         const checkTargetFeature = async () => {
@@ -190,7 +220,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
     };
 
     // Load basic feature data
-    const fetchFeaturesData = async (page: number = 0, limit: number = 10) => {
+    const fetchFeaturesData = useCallback(async (page: number = 0, limit: number = 15) => {
         setLoading(true);
         setError(null);
         try {
@@ -240,70 +270,21 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
             } else {
                 setError(res.data.message || "Failed to fetch data");
             }
-        } catch (err: any) {
-            setError(err?.response?.data?.message || err?.message || "Failed to fetch data");
+            } catch (err) {
+            if (err instanceof AxiosError) {
+                setError(err.response?.data?.message || err.message || "Failed to fetch data");
+            } else if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError("Failed to fetch data");
+            }
         } finally {
             setLoading(false);
         }
-    };
-
-    useEffect(() => {
-        fetchFeaturesData();
-    }, []);
-
-    // Save correlation filter thresholds to localStorage whenever they change
-    useEffect(() => {
-        localStorage.setItem('correlationThresholds', JSON.stringify({
-            pearsonThreshold: correlationFilter.pearsonThreshold,
-            cramerVThreshold: correlationFilter.cramerVThreshold,
-            etaThreshold: correlationFilter.etaThreshold,
-        }));
-    }, [correlationFilter.pearsonThreshold, correlationFilter.cramerVThreshold, correlationFilter.etaThreshold]);
-
-    // Reload feature analysis when correlation filter thresholds change
-    useEffect(() => {
-        if (features.length > 0) {
-            features.forEach((feature: FeatureData) => {
-                loadFeatureAnalysis(feature.feature_name);
-            });
-        }
-    }, [
-        correlationFilter.pearsonThreshold,
-        correlationFilter.cramerVThreshold,
-        correlationFilter.etaThreshold,
-    ]);
-
-
-
-    // Load detailed analysis for a specific feature (returns promise)
-    const loadFeatureAnalysisPromise = async (featureName: string) => {
-        try {
-            const params = new URLSearchParams({
-                pearson_threshold:
-                    correlationFilter.pearsonThreshold.toString(),
-                cramer_v_threshold:
-                    correlationFilter.cramerVThreshold.toString(),
-                eta_squared_threshold:
-                    correlationFilter.etaThreshold.toString(),
-            });
-
-            const res = await api.get(
-                `/api/feature-details/${encodeURIComponent(
-                    featureName
-                )}?${params}`
-            );
-            if (res.data.success) {
-                return res.data;
-            }
-            return null;
-        } catch (err: any) {
-            console.error(`Error loading analysis for ${featureName}:`, err);
-            return null;
-        }
-    };
+    }, [loadFeatureAnalysisPromise]);
 
     // Load detailed analysis for a specific feature
-    const loadFeatureAnalysis = async (featureName: string) => {
+    const loadFeatureAnalysis = useCallback(async (featureName: string) => {
         try {
             const params = new URLSearchParams({
                 pearson_threshold:
@@ -353,7 +334,7 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                     )
                 );
             }
-        } catch (err: any) {
+        } catch (err) {
             console.error(`Error loading analysis for ${featureName}:`, err);
             // Mark as loaded even if failed to prevent infinite loading
             setFeatures((prevFeatures: FeatureData[]) =>
@@ -368,9 +349,56 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                 )
             );
         }
-    };
+    }, 
+    [correlationFilter.pearsonThreshold, correlationFilter.cramerVThreshold, correlationFilter.etaThreshold]);
 
-    const handleDataTypeChange = async (
+    useEffect(() => {
+        fetchFeaturesData();
+    }, [fetchFeaturesData]);
+
+    // Save correlation filter thresholds to localStorage whenever they change
+    useEffect(() => {
+        localStorage.setItem('correlationThresholds', JSON.stringify({
+            pearsonThreshold: correlationFilter.pearsonThreshold,
+            cramerVThreshold: correlationFilter.cramerVThreshold,
+            etaThreshold: correlationFilter.etaThreshold,
+        }));
+    }, [correlationFilter.pearsonThreshold, correlationFilter.cramerVThreshold, correlationFilter.etaThreshold]);
+
+    // Store current features in a ref to avoid dependency issues
+    const featuresRef = useRef<FeatureData[]>([]);
+    useEffect(() => {
+        featuresRef.current = features;
+    }, [features]);
+
+    // Reload feature analysis when correlation filter thresholds change
+    useEffect(() => {
+        if (featuresRef.current.length > 0) {
+            const timeoutId = setTimeout(() => {
+                Promise.all(
+                    featuresRef.current.map((feature: FeatureData) =>
+                        loadFeatureAnalysis(feature.feature_name)
+                    )
+                );
+            }, 300); // 300ms debounce delay
+
+            return () => clearTimeout(timeoutId);
+        }
+    }, [
+        correlationFilter.pearsonThreshold,
+        correlationFilter.cramerVThreshold,
+        correlationFilter.etaThreshold,
+        loadFeatureAnalysis,
+    ]);
+
+
+    // Keep a ref to loadFeatureAnalysis for stable reference in callbacks
+    const loadFeatureAnalysisRef = useRef(loadFeatureAnalysis);
+    useEffect(() => {
+        loadFeatureAnalysisRef.current = loadFeatureAnalysis;
+    }, [loadFeatureAnalysis]);
+
+    const handleDataTypeChange = useCallback(async (
         featureName: string,
         newType: "N" | "C"
     ) => {
@@ -390,24 +418,23 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
                     )
                 );
 
-             // Reload correlations for ALL features
-            features.forEach((feature: FeatureData) => {
-                loadFeatureAnalysis(feature.feature_name);
-            });
+                // Reload correlations for ALL features
+                featuresRef.current.forEach((feature: FeatureData) => {
+                    loadFeatureAnalysisRef.current(feature.feature_name);
+                });
 
-            // Notify other components
-            window.dispatchEvent(new CustomEvent('dataTypeChanged'));
-        
+                // Notify other components
+                window.dispatchEvent(new CustomEvent('dataTypeChanged'));
             } else {
                 console.error("Failed to update data type:", res.data.message);
             }
-        } catch (err: any) {
+        } catch (err) {
             console.error("Error updating data type:", err);
         } finally {
             setOpenDataTypeDropdown(null);
             setDataTypeDropdownPosition(null);
         }
-    };
+    }, []);
 
     const toggleDropdown = (featureName: string, event?: React.MouseEvent) => {
         if (openDataTypeDropdown === featureName) {
@@ -677,20 +704,20 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
 
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    }, [closeDropdown, closeFilterDropdown, closeDataTypeFilterDropdown, closeCorrelationFilterDropdown, closeCorrelationDetailsDropdown]);
 
     // Listen for data type changes from other components
     useEffect(() => {
         const handleDataTypeChanged = () => {
             // Reload correlations for all features when any data type changes
-            features.forEach((feature: FeatureData) => {
-                loadFeatureAnalysis(feature.feature_name);
+            featuresRef.current.forEach((feature: FeatureData) => {
+                loadFeatureAnalysisRef.current(feature.feature_name);
             });
         };
 
         window.addEventListener('dataTypeChanged', handleDataTypeChanged);
         return () => window.removeEventListener('dataTypeChanged', handleDataTypeChanged);
-    }, [features]);
+    }, []);
 
 
     // Filter features based on data type filter and correlation filter
@@ -780,8 +807,8 @@ const MissingFeaturesTableCard: React.FC<MissingFeaturesTableCardProps> = ({
             ) : error ? (
                 <div className="text-center text-red-500 py-8">{error}</div>
             ) : (
-                <div ref={tableContainerRef} className="max-h-96 overflow-y-auto bg-white">
-                    <div className="overflow-x-auto">
+                <div ref={tableContainerRef} className="overflow-x-auto bg-white">
+                    <div className="min-w-[800px]">
                         <table className="w-full text-sm">
                             <thead className="sticky top-0 bg-white z-10 shadow-sm">
                                 <tr className="bg-white">
